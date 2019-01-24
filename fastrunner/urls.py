@@ -15,7 +15,7 @@ Including another URLconf
 """
 
 from django.urls import path
-from fastrunner.views import project, api, config, database, run, suite, report
+from fastrunner.views import project, api, config, database, run, suite, report,testsuite, newrun
 
 urlpatterns = [
     # 项目相关接口地址
@@ -122,5 +122,22 @@ urlpatterns = [
         "delete": "delete",
         "get": "look"
     })),
+
+    path('suite/', testsuite.SuiteTemplateView.as_view({
+        "post": "add",
+        "get": "list"
+    })),
+    path('suite/<int:pk>/', testsuite.SuiteTemplateView.as_view({
+        "patch": "update",
+    })),
+
+    path('suitestep/', testsuite.SuiteTemplateView.as_view({
+        "get": "getSingleStep",
+        "delete": "delete",
+        "patch": "updateSingleStep"
+    })),
+
+    path('run_suitestep/', newrun.run_suitestep),
+
 
 ]

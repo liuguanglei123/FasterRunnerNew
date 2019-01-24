@@ -161,3 +161,20 @@ class VariablesSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Variables
         fields = '__all__'
+
+
+class SuiteSerializer(serializers.ModelSerializer):
+    """
+    接口信息序列化
+    """
+    body = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.TestSuite
+        fields = ['id', 'name', 'project', 'relation', 'body']
+
+    def get_body(self, obj):
+        parse = Parse(eval(obj.body))
+        #parse.parse_http()
+        #return parse.testcase
+        return obj.body

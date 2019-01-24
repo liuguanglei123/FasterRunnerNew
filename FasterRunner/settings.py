@@ -177,3 +177,4 @@ CORS_ALLOW_HEADERS = (
     'x-requested-with',
 )
 
+RUN_TEST_PATH = 'D:\\fastrunner_run\\'

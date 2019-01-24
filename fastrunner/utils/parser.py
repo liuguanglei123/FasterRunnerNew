@@ -1,6 +1,7 @@
 import json
 from enum import Enum
 from fastrunner.models import FileBinary
+import copy
 
 class FileType(Enum):
     """
@@ -370,3 +371,510 @@ class Parse(object):
                     })
 
         self.testcase = test
+
+def getApiFromSuite(queryset):
+    apilist = []
+    try:
+        body = eval(queryset.body)
+        for test in body['tests']:
+            apilist.append(test['id'])
+    except Exception as err:
+        return []
+
+    return apilist
+
+
+class SuiteFormat(object):
+
+    def __init__(self,body,level="testsuite",optType='add'):
+        self.__level = level
+        self.__optType = optType
+        if(level == "testsuite"):
+            self.__initapi__(body)
+
+    def __initapi__(self,body):
+        self.tests = []
+        for each in body:
+            tmp = {}
+            tmp['id'] = each['id']
+            tmp['api'] = each['name']
+            if(self.__optType == "update"):
+                tmp['srcindex'] = each.get('srcindex', 0)
+                if(each.get('flag','') == 'add'):
+                    tmp['flag'] = each.get('flag','')
+            self.tests.append(tmp)
+
+'''之前设计了一个类SuiteFormat，这个类设计失败了，在逐渐完善的过程中，发现一开始设计的结构不满足使用要求，所以新创建了一个类，以前的suiteformat，要逐渐迁移到这个新的类上'''
+class SuiteBodyFormat(object):
+    def __init__(self,body,level="testsuite"):
+        self.srcbody = eval(body)
+        self.level = level
+        self.testStructure = {
+            'name': '',
+            'id': '',
+            'request': {
+                'method': '',
+                'url': '',
+                'headers': {},
+                'data': '',
+                'json': {},
+                'params': {},
+                'files': '',
+                'validate': [],
+                'variables': [],
+                'extract': [],
+                'setup_hooks': [],
+                'teardown_hooks':[]
+            },
+            'srcAPI':{}
+        }
+
+        self.body = {
+            'name': '',
+            'tests': []
+        }
+
+    @staticmethod
+    def __get_type(content):
+        """
+        返回data_type 默认string
+        """
+        var_type = {
+            "str": 1,
+            "int": 2,
+            "float": 3,
+            "bool": 4,
+            "list": 5,
+            "dict": 6,
+        }
+
+        key = str(type(content).__name__)
+
+        if key in ["list", "dict"]:
+            content = json.dumps(content)
+        else:
+            content = str(content)
+        return var_type[key], content
+
+    def parseSingleApi(self,index):
+        srcindex = 0
+        for each in self.srcbody['tests']:
+            srcindex += 1
+            if(index == srcindex):
+                self.singleAPI = copy.deepcopy(self.testStructure)
+                self.singleAPI['name'] = each.get('api','')
+                self.singleAPI['id'] = each.get('id', '')
+                self.singleAPI['request']['method'] = each.get('method', '')
+                self.singleAPI['request']['url'] = each.get('url', '')
+                self.singleAPI['request']['headers'] = each.get('headers', {})
+                self.singleAPI['request']['data'] = each.get('data', '')
+                self.singleAPI['request']['json'] = each.get('json', {})
+                self.singleAPI['request']['params'] = each.get('params', {})
+                self.singleAPI['request']['files'] = each.get('files', '')
+                self.singleAPI['request']['validate'] = each.get('validate', [])
+                self.singleAPI['request']['variables'] = each.get('variables', [])
+                self.singleAPI['request']['extract'] = each.get('extract', [])
+                self.singleAPI['request']['hooks'] = each.get('hooks',[])
+            else:
+                continue
+
+    def setSrcApi(self,apiBody):
+        self.singleSrcAPI = {}
+        for each in ['method','url']:
+            self.singleSrcAPI[each] = apiBody['request'].get(each,'')
+
+        for each in ['headers','json','param','data']:
+            self.singleSrcAPI[each] = apiBody['request'].get(each,{})
+
+        for each in ['validate','extract','variables','setup_hooks','teardown_hooks']:
+            self.singleSrcAPI[each] = apiBody.get('validate',[])
+
+    def parse_http(self):
+        self.parse_http_src()
+        self.parse_http_new()
+
+    def parse_http_new(self):
+        tmp = []
+        if self.singleAPI['request'].get('headers'):
+            for key, value in self.singleAPI['request'].pop('headers').items():
+                tmp.append({
+                    "key": key,
+                    "value": value,
+                })
+            self.singleAPI['request']['headers'] = tmp
+
+    def parse_http_src(self):
+        """
+        标准前端脚本格式
+        """
+        #  初始化test结构
+
+        self.srcAPI = {
+            'headers':[],
+            'params':[],
+            'data':[],
+            'json':'',
+            'extract':[],
+            'validate':[],
+            'variables': [],
+            'setup_hooks': [],
+            'teardown_hooks': [],
+        }
+        if self.singleSrcAPI.get('headers'):
+            for key, value in self.singleSrcAPI.pop('headers').items():
+                self.srcAPI['headers'].append({
+                    "key": key,
+                    "value": value,
+                })
+
+        if self.singleSrcAPI.get('data'):
+            for key, value in self.singleSrcAPI.pop('data').items():
+                obj = self.__get_type(value)
+                self.srcAPI['data'].append({
+                    'key':key,
+                    'value':obj[1],
+                    'type':obj[0],
+                })
+
+        '''if self.__request.get('files'):
+            for key, value in self.__request.pop("files").items():
+                size = FileBinary.objects.get(name=value).size
+                test['request']['data'].append({
+                    "key": key,
+                    "value": value,
+                    "size": size,
+                    "type": 5,
+                    "desc": self.__desc["files"][key]
+                })'''
+
+        if self.singleSrcAPI.get('params'):
+            for key, value in self.singleSrcAPI.pop('params').items():
+                self.srcAPI['params'].append({
+                    "key": key,
+                    "value": value,
+                    "type": 1,
+                })
+
+        if self.singleSrcAPI.get('json'):
+            self.srcAPI["json_data"] = json.dumps(self.singleSrcAPI.pop("json"), indent=4,
+                           separators=(',', ': '), ensure_ascii=False)
+
+        if self.singleSrcAPI.get('variables'):
+            for content in self.singleSrcAPI['variables']:
+                for key, value in content.items():
+                    obj = self.__get_type(value)
+                    self.srcAPI["variables"].append({
+                        "key": key,
+                        "value": obj[1],
+                        "type": obj[0]
+                    })
+
+        if self.singleSrcAPI.get('setup_hooks') or self.singleSrcAPI.get('teardown_hooks'):
+            pass
+
+        self.singleAPI['srcAPI'] = self.srcAPI
+
+        '''if len(self.__setup_hooks) > len(self.__teardown_hooks):
+                for index in range(0, len(self.__setup_hooks)):
+                    teardown = ""
+                    if index < len(self.__teardown_hooks):
+                        teardown = self.__teardown_hooks[index]
+                    test["hooks"].append({
+                        "setup": self.__setup_hooks[index],
+                        "teardown": teardown
+                    })
+            else:
+                for index in range(0, len(self.__teardown_hooks)):
+                    setup = ""
+                    if index < len(self.__setup_hooks):
+                        setup = self.__setup_hooks[index]
+                    test["hooks"].append({
+                        "setup": setup,
+                        "teardown": self.__teardown_hooks[index]
+                    })
+
+        self.testcase = test'''
+
+
+class TestSuiteFormat(object):
+
+    def __init__(self,body,level="testsuite"):
+        self.__level = level
+        self.__singleTestStructure = {
+            'name': '',
+            'id': '',
+            'body': {
+                'method': '',
+                'url': '',
+                'headers': {},
+                'data': {},
+                'json': '',
+                'params': {},
+                'validate': [],
+                'variables': [],
+                'extract': [],
+                'setup_hooks': [],
+                'teardown_hooks': []
+            },
+            'srcAPI': {
+                'method': '',
+                'url': '',
+                'headers':{},
+                'params':{},
+                'data':{},
+                'json':'',
+                'extract':[],
+                'validate':[],
+                'variables': [],
+                'setup_hooks': [],
+                'teardown_hooks': []
+            }
+        }
+
+        self.body = {
+            'name': '',
+            'tests': []
+        }
+
+        self.__srcbody = eval(body)
+        self.init_APIList()
+
+
+    def init_APIList(self):
+        self.body['name'] = self.__srcbody.get('name','')
+        self.body['tests'] = copy.deepcopy(self.__srcbody.get('tests', []))
+        srcindex = 0
+        for each in self.body['tests']:
+            srcindex += 1
+            each['srcindex'] = srcindex
+
+
+    def init_singleAPIBody(self,apiBody):
+        #初始化api定义数据
+        self.singleAPIBody = copy.deepcopy(self.__singleTestStructure)
+
+        self.singleAPIBody['srcAPI']['name'] = apiBody.get('name', '')
+
+        for each in ['method', 'url','json']:
+            self.singleAPIBody['srcAPI'][each] = apiBody['request'].get(each, '')
+
+        for each in ['headers', 'param', 'data']:
+            self.singleAPIBody['srcAPI'][each]  = apiBody['request'].get(each, {})
+
+        for each in ['validate', 'extract', 'variables', 'setup_hooks', 'teardown_hooks']:
+            self.singleAPIBody['srcAPI'][each] = apiBody.get(each, [])
+
+        #初始化重定义数据
+        self.singleAPIBody['name'] = self.__specIndexAPI.get('api', '')
+        self.singleAPIBody['id'] = self.__specIndexAPI.get('id', '')
+        self.singleAPIBody['srcindex'] = self.__specIndexAPI.get('srcindex')
+        self.singleAPIBody['body']['headers'] = self.__specIndexAPI.get('headers', {})
+        self.singleAPIBody['body']['data'] = self.__specIndexAPI.get('data', {})
+        self.singleAPIBody['body']['json'] = self.__specIndexAPI.get('json', '')
+        self.singleAPIBody['body']['params'] = self.__specIndexAPI.get('params', {})
+        self.singleAPIBody['body']['validate'] = self.__specIndexAPI.get('validate', [])
+        self.singleAPIBody['body']['variables'] = self.__specIndexAPI.get('variables', [])
+        self.singleAPIBody['body']['extract'] = self.__specIndexAPI.get('extract', [])
+        self.singleAPIBody['body']['setup_hooks'] = self.__specIndexAPI.get('setup_hooks', [])
+        self.singleAPIBody['body']['teardown_hooks'] = self.__specIndexAPI.get('teardown_hooks', [])
+
+    def getAPIId(self,index):
+        for each in self.body['tests']:
+            if(index == each['srcindex']):
+                self.__specIndexAPI = each
+                self.specAPIid = each['id']
+            else:
+                continue
+
+    @staticmethod
+    def __get_type(content):
+        """
+        返回data_type 默认string
+        """
+        var_type = {
+            "str": 1,
+            "int": 2,
+            "float": 3,
+            "bool": 4,
+            "list": 5,
+            "dict": 6,
+        }
+
+        key = str(type(content).__name__)
+
+        if key in ["list", "dict"]:
+            content = json.dumps(content)
+        else:
+            content = str(content)
+        return var_type[key], content
+
+    #将headers params data等转换成列表，方便前台进行展示
+    def parse_http(self):
+        suiteStep = {
+            'header': [],
+            'request':{
+                'data': [],
+                'params': [],
+                'json_data': '',
+            },
+            'variables': [],
+            'hooks': [],
+            'validate': [],
+            'extract': [],
+        }
+        apiStep = {
+            'header': [],
+            'request': {
+                'data': [],
+                'params': [],
+                'json_data': '',
+            },
+            'variables': [],
+            'hooks': [],
+            'validate': [],
+            'extract': [],
+        }
+        self.testcase = {
+            'suiteStep':suiteStep,
+            'apiStep':apiStep
+        }
+        self.testcase['name'] = self.singleAPIBody['srcAPI']['name']
+        self.testcase['method'] = self.singleAPIBody['srcAPI']['method']
+        self.testcase['url'] = self.singleAPIBody['srcAPI']['url']
+        self.testcase['srcindex'] = self.singleAPIBody['srcindex']
+
+        if self.singleAPIBody['srcAPI'].get('headers'):
+            for key, value in self.singleAPIBody['srcAPI'].pop('headers').items():
+                apiStep['header'].append({
+                    "key": key,
+                    "value": value,
+                })
+
+        if self.singleAPIBody['body'].get('headers'):
+            for key, value in self.singleAPIBody['body'].pop('headers').items():
+                suiteStep['header'].append({
+                    "key": key,
+                    "value": value,
+                })
+
+        if self.singleAPIBody['srcAPI'].get('data'):
+            for key, value in self.singleAPIBody['srcAPI'].pop('data').items():
+                obj = self.__get_type(value)
+                apiStep['request']['data'].append({
+                    "key": key,
+                    "value": obj[1],
+                    "type": obj[0],
+                })
+
+        if self.singleAPIBody['body'].get('data'):
+            for key, value in self.singleAPIBody['body'].pop('data').items():
+                obj = self.__get_type(value)
+                suiteStep['request']['data'].append({
+                    "key": key,
+                    "value": obj[1],
+                    "type": obj[0],
+                })
+
+        if self.singleAPIBody['srcAPI'].get('params'):
+            for key, value in self.singleAPIBody['srcAPI'].pop('params').items():
+                apiStep['request']['params'].append({
+                    "key": key,
+                    "value": value,
+                    "type": 1,
+                })
+
+        if self.singleAPIBody['body'].get('params'):
+            for key, value in self.singleAPIBody['body'].pop('params').items():
+                suiteStep['request']['params'].append({
+                    "key": key,
+                    "value": value,
+                    "type": 1,
+                })
+
+        if self.singleAPIBody['srcAPI'].get('json'):
+            apiStep['request']["json_data"] = \
+                json.dumps(self.singleAPIBody['srcAPI'].pop("json"), indent=4,
+                           separators=(',', ': '), ensure_ascii=False)
+
+        if self.singleAPIBody['body'].get('json'):
+            suiteStep['request']["json_data"] = \
+                json.dumps(self.singleAPIBody['body'].pop("json"), indent=4,
+                           separators=(',', ': '), ensure_ascii=False)
+
+        if self.singleAPIBody['srcAPI'].get('variables'):
+            for content in self.singleAPIBody['srcAPI']['variables']:
+                for key, value in content.items():
+                    obj = self.__get_type(value)
+                    apiStep["variables"].append({
+                        "key": key,
+                        "value": obj[1],
+                        "type": obj[0]
+                    })
+
+        if self.singleAPIBody['body'].get('variables'):
+            for content in self.singleAPIBody['body']['variables']:
+                for key, value in content.items():
+                    obj = self.__get_type(value)
+                    suiteStep["variables"].append({
+                        "key": key,
+                        "value": obj[1],
+                        "type": obj[0]
+                    })
+
+        if self.singleAPIBody['srcAPI'].get('setup_hooks') or self.singleAPIBody['srcAPI'].get('teardown_hooks'):
+            pass
+
+        if self.singleAPIBody['body'].get('setup_hooks') or self.singleAPIBody['body'].get('teardown_hooks'):
+            pass
+
+        if self.singleAPIBody['srcAPI'].get('extract'):
+            for content in self.singleAPIBody['srcAPI']['extract']:
+                for key, value in content.items():
+                    apiStep["extract"].append({
+                        "key": key,
+                        "value": value,
+                    })
+
+        if self.singleAPIBody['body'].get('extract'):
+            for content in self.singleAPIBody['body']['extract']:
+                for key, value in content.items():
+                    suiteStep["extract"].append({
+                        "key": key,
+                        "value": value,
+                    })
+
+        if self.singleAPIBody['srcAPI'].get('validate'):
+            for content in self.singleAPIBody['srcAPI'].get('validate'):
+                for key, value in content.items():
+                    obj = self.__get_type(value[1])
+                    apiStep["validate"].append({
+                        "expect": obj[1],
+                        "actual": value[0],
+                        "comparator": key,
+                        "type": obj[0]
+                    })
+
+        if self.singleAPIBody['body'].get('validate'):
+            for content in self.singleAPIBody['body'].get('validate'):
+                for key, value in content.items():
+                    obj = self.__get_type(value[1])
+                    suiteStep["validate"].append({
+                        "expect": obj[1],
+                        "actual": value[0],
+                        "comparator": key,
+                        "type": obj[0]
+                    })
+
+    def updateStep(self,SuiteStepBody):
+        for each in self.body.get('tests',[]):
+            if(each['srcindex'] == SuiteStepBody['srcindex']):
+                each['headers'] = SuiteStepBody['header'].get('header',{})
+                each['extract'] = SuiteStepBody['extract'].get('extract',{})
+                each['validate'] = SuiteStepBody['validate'].get('validate',{})
+                each['variables'] = SuiteStepBody['variables'].get('variables',{})
+                break
+            else:
+                continue
+
+        for each in self.body.get('tests',[]):
+            del each['srcindex']

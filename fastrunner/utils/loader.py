@@ -14,7 +14,8 @@ from threading import Thread
 import requests
 import yaml
 from bs4 import BeautifulSoup
-from httprunner import HttpRunner, logger
+from httprunner import logger
+from httprunner.api import HttpRunner
 from requests.cookies import RequestsCookieJar
 from requests_toolbelt import MultipartEncoder
 
@@ -320,6 +321,31 @@ def parse_summary(summary):
 
         for record in detail["records"]:
 
+            for each in record['meta_datas']['data']:
+                for key,value in each['request'].items():
+                    if isinstance(value, bytes):
+                        each[key] = value.decode("utf-8")
+                    if isinstance(value, RequestsCookieJar):
+                        each[key] = requests.utils.dict_from_cookiejar(value)
+                for key, value in each["response"].items():
+                    if isinstance(value, bytes):
+                        each[key] = value.decode("utf-8")
+                    if isinstance(value, RequestsCookieJar):
+                        each[key] = requests.utils.dict_from_cookiejar(value)
+
+                if "text/html" in each["response"]["content_type"]:
+                    each["response"]["content"] = \
+                    BeautifulSoup(each["response"]["content"], features="html.parser").prettify()
+
+    return summary
+
+'''def parse_summary(summary):
+    """序列化summary
+    """
+    for detail in summary["details"]:
+
+        for record in detail["records"]:
+
             for key, value in record["meta_data"]["request"].items():
                 if isinstance(value, bytes):
                     record["meta_data"]["request"][key] = value.decode("utf-8")
@@ -336,7 +362,7 @@ def parse_summary(summary):
                 record["meta_data"]["response"]["content"] = \
                     BeautifulSoup(record["meta_data"]["response"]["content"], features="html.parser").prettify()
 
-    return summary
+    return summary'''
 
 
 def save_summary(name, summary, project, type=2):

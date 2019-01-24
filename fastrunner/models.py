@@ -202,3 +202,17 @@ class Relation(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     tree = models.TextField("结构主题", null=False, default=[])
     type = models.IntegerField("树类型", default=1)
+
+
+class TestSuite(BaseTable):
+    '''
+    Suite信息表，用来存放api数据的集合，即步骤集
+    '''
+    class Meta:
+        verbose_name = "步骤集信息"
+        db_table = "Suite"
+
+    name = models.CharField("步骤集名称", null=False, max_length=100)
+    body = models.TextField("主体信息", null=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    relation = models.IntegerField("节点id", null=False)
