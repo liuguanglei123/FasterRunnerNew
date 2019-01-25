@@ -1,5 +1,5 @@
 from rest_framework.decorators import api_view
-from fastrunner.utils import loader
+from fastrunner.utils import loader,newloader
 from rest_framework.response import Response
 from fastrunner.utils.parser import Format
 from fastrunner import models
@@ -7,7 +7,7 @@ from django.conf import settings
 import os,time
 from httprunner.utils import create_scaffold
 from fastrunner.utils import runner
-
+import traceback
 """运行方式
 """
 
@@ -28,43 +28,21 @@ def run_api(request):
 def run_api_pk(request, **kwargs):
     """run api by pk
     """
-    api = models.API.objects.get(id=kwargs['pk'])
-    testcase = eval(api.body)
 
-    summary = loader.debug_api(testcase, api.project.id)
+    run_test_path = settings.RUN_TEST_PATH
+    timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
+    projectPath = os.path.join(run_test_path, timedir)
+    create_scaffold(projectPath)
 
-    return Response(summary)
+    singleAPI = runner.RunAPI(type="singleAPI",id=kwargs['pk'],projectPath=projectPath)
+    singleAPI.serializeAPI()
+    singleAPI.serializeDebugtalk()
+    singleAPI.generateMapping()
+    singleAPI.runAPI()
+    return Response(singleAPI.summary)
 
 
-@api_view(['POST'])
-def run_api_tree(request):
-    """run api by tree
-    {
-        project: int
-        relation: list
-        name: str
-        async: bool
-    }
-    """
-    # order by id default
-    project = request.data['project']
-    relation = request.data["relation"]
-    back_async = request.data["async"]
-    name = request.data["name"]
 
-    testcase = []
-    for relation_id in relation:
-        api = models.API.objects.filter(project__id=project, relation=relation_id).order_by('id').values('body')
-        for content in api:
-            testcase.append(eval(content['body']))
-    if back_async:
-        loader.async_debug_api(testcase, project, name)
-        summary = loader.TEST_NOT_EXISTS
-        summary["msg"] = "接口运行中，请稍后查看报告"
-    else:
-        summary = loader.debug_api(testcase, project)
-
-    return Response(summary)
 
 
 @api_view(["POST"])
@@ -214,38 +192,47 @@ def run_suitestep(request):
 
     return Response(allAPI.summary)
 
+@api_view(['POST'])
+def run_api_tree(request):
+    """run api by tree
+    {
+        project: int
+        relation: list
+        name: str
+        async: bool
+    }
+    """
+    # order by id default
 
-    '''project = request.data['project']
-    relation = request.data["relation"]
-    back_async = request.data["async"]
-    report = request.data["name"]
+    run_test_path = settings.RUN_TEST_PATH
+    timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
+    projectPath = os.path.join(run_test_path, timedir)
+    create_scaffold(projectPath)
 
-    config = None
-    testcase = []
-    for relation_id in relation:
-        suite = models.Case.objects.filter(project__id=project,
-                                           relation=relation_id).order_by('id').values('id', 'name')
+    allAPI = runner.RunAPI(type="APITree", relation=request.data['relation'],project=request.data['project'], projectPath=projectPath)
+    allAPI.serializeAPI()
+    allAPI.serializeDebugtalk()
+    allAPI.generateMapping()
+    allAPI.runAPI()
+    return Response(allAPI.summary)
 
-        for content in suite:
-            test_list = models.CaseStep.objects. \
-                filter(case__id=content["id"]).order_by("step").values("body")
-            # [{scripts}, {scripts}]
-            testcase_list = []
+@api_view(['POST'])
+def run_api(request):
+    """ run api by body
+    """
+    api = Format(request.data)
+    api.parse()
+    run_test_path = settings.RUN_TEST_PATH
+    timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
+    projectPath = os.path.join(run_test_path, timedir)
+    create_scaffold(projectPath)
+    try:
+        singleAPI = runner.RunAPI(type="debugAPI",name=api.name,project=api.project,projectPath=projectPath,APIBody=api.testcase)
+    except:
+        traceback.print_exc()
 
-            for content in test_list:
-                body = eval(content["body"])
-                if "base_url" in body["request"].keys():
-                    config = eval(models.Config.objects.get(name=body["name"], project__id=project).body)
-                    continue
-                testcase_list.append(body)
-            # [[{scripts}, {scripts}], [{scripts}, {scripts}]]
-            testcase.append(testcase_list)
-
-    if back_async:
-        loader.async_debug_suite(testcase, project, report, suite, config=config)
-        summary = loader.TEST_NOT_EXISTS
-        summary["msg"] = "用例运行中，请稍后查看报告"
-    else:
-        summary = loader.debug_suite(testcase, project, suite, config=config)
-
-    return Response(summary)'''
+    singleAPI.serializeAPI()
+    singleAPI.serializeDebugtalk()
+    singleAPI.generateMapping()
+    singleAPI.runAPI()
+    return Response(singleAPI.summary)

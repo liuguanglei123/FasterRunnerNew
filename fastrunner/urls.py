@@ -103,9 +103,9 @@ urlpatterns = [
     })),
 
     # run api
-    path('run_api_pk/<int:pk>/', run.run_api_pk),
-    path('run_api_tree/', run.run_api_tree),
-    path('run_api/', run.run_api),
+
+
+
 
     # run testsuite
     path('run_testsuite/', run.run_testsuite),
@@ -138,6 +138,10 @@ urlpatterns = [
     })),
 
     path('run_suitestep/', newrun.run_suitestep),
+
+    path('run_api_pk/<int:pk>/', newrun.run_api_pk),
+    path('run_api_tree/', newrun.run_api_tree),
+    path('run_api/', newrun.run_api),
 
 
 ]

@@ -6,13 +6,14 @@ import sys
 import os
 import subprocess
 import tempfile
+import codecs
 from fastrunner.utils import loader
 import yaml,copy,json
 from fastrunner import models
 from httprunner.api import HttpRunner
 from django.core.exceptions import ObjectDoesNotExist
 from fastrunner.utils.loader import parse_summary
-
+import traceback
 
 EXEC = sys.executable
 
@@ -100,7 +101,7 @@ class RunTestSuite(object):
 
             if(os.path.exists(os.path.join(self.apiPath, each.get('name')+'.yml'))):
                 continue
-            file = open(os.path.join(self.apiPath, each.get('name')+'.yml'),'a+')
+            file = codecs.open(os.path.join(self.apiPath, each.get('name')+'.yml'),'a+','utf-8')
 
             file.write(yaml.dump(singleAPI,default_flow_style=False))
             file.flush()
@@ -167,7 +168,7 @@ class RunTestSuite(object):
         if(os.path.exists(os.path.join(self.suitePath,self.suiteQuerySet.name + '.yml'))):
             return
 
-        file = open(os.path.join(self.suitePath, self.suiteQuerySet.name + '.yml'),'a+')
+        file = codecs.open(os.path.join(self.suitePath, self.suiteQuerySet.name + '.yml'),'a+','utf-8')
         file.write(yaml.dump(self.SuiteBody, default_flow_style=False))
         file.flush()
 
@@ -185,7 +186,7 @@ class RunTestSuite(object):
 
         self.debugtalk = queryset.code
 
-        file = open(os.path.join(self.__projectPath, 'debugtalk.py'), 'a+')
+        file = codecs.open(os.path.join(self.__projectPath, 'debugtalk.py'), 'a+','utf-8')
         file.write(self.debugtalk)
         file.flush()
 
@@ -199,3 +200,72 @@ class RunTestSuite(object):
         self.__mapping = {}
         for each in queryset:
             self.__mapping[each.key] = each.value
+
+
+class RunAPI(object):
+
+    def __init__(self,*args,**kwargs):
+        self.__APIList = []
+        self.__projectPath = kwargs['projectPath']
+
+        if(kwargs['type'] == 'singleAPI'):
+            try:
+                api = models.API.objects.get(id=kwargs['id'])
+            except ObjectDoesNotExist:
+                self.msg = 'ObjectDoesNotExist'
+
+            self.__APIList.append([api.name,eval(api.body)])
+            self.__project = api.project_id
+        elif(kwargs['type'] == 'APITree'):
+            relationList = kwargs['relation']
+            self.__project = kwargs['project']
+            try:
+                APIList = models.API.objects.filter(relation__in=relationList,project=self.__project)
+            except ObjectDoesNotExist:
+                self.msg = 'ObjectDoesNotExist'
+            for each in APIList:
+                self.__APIList.append([each.name,eval(each.body)])
+        elif(kwargs['type'] == 'debugAPI'):
+            self.__project = kwargs['project']
+            self.__APIList.append([kwargs['name'],kwargs['APIBody']])
+
+
+    def serializeAPI(self):
+        if(len(self.__APIList) == 0):
+            return
+
+        self.apiPath = os.path.join(self.__projectPath,'api')
+        for each in self.__APIList:
+            file = codecs.open(os.path.join(self.apiPath,each[0]+'.yml'),'a+','utf-8')
+            file.write(yaml.dump(each[1],default_flow_style=False))
+            file.flush()
+            file.close()
+
+    def serializeDebugtalk(self):
+        try:
+            queryset = models.Debugtalk.objects.get(project__id=self.__project)
+        except ObjectDoesNotExist:
+            return
+
+        self.debugtalk = queryset.code
+
+        file = codecs.open(os.path.join(self.__projectPath, 'debugtalk.py'), 'a+','utf-8')
+        file.write(self.debugtalk)
+        file.flush()
+
+    def generateMapping(self):
+        try:
+            queryset = models.Variables.objects.filter(project_id=self.__project)
+        except ObjectDoesNotExist:
+            self.__mapping=None
+            return
+
+        self.__mapping = {}
+        for each in queryset:
+            self.__mapping[each.key] = each.value
+
+    def runAPI(self):
+        runner = HttpRunner(failfast=False)
+        runner.run(self.apiPath,mapping=self.__mapping)
+        self.summary = parse_summary(runner.summary)
+
