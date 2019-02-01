@@ -15,7 +15,7 @@ Including another URLconf
 """
 
 from django.urls import path
-from fastrunner.views import project, api, config, database, run, suite, report,testsuite, newrun
+from fastrunner.views import project, api, config, database, run, suite, report,testsuite, newrun, testcase
 
 urlpatterns = [
     # 项目相关接口地址
@@ -143,5 +143,17 @@ urlpatterns = [
     path('run_api_tree/', newrun.run_api_tree),
     path('run_api/', newrun.run_api),
 
+    path('testCaseList/', testcase.TestCaseTemplateView.as_view({
+        "post": "add",
+        "get": "list"
+    })),
+    path('testCaseList/<int:pk>/', testcase.TestCaseTemplateView.as_view({
+        "patch": "update",
+    })),
+    path('testCaseStep/', testcase.TestCaseTemplateView.as_view({
+        "get": "getSingleStep",
+        "delete": "delete",
+        "patch": "updateSingleStep"
+    })),
 
 ]

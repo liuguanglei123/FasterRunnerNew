@@ -175,6 +175,19 @@ class SuiteSerializer(serializers.ModelSerializer):
 
     def get_body(self, obj):
         parse = Parse(eval(obj.body))
-        #parse.parse_http()
-        #return parse.testcase
+        return obj.body
+
+
+class TestCaseSerializer(serializers.ModelSerializer):
+    """
+    接口信息序列化
+    """
+    body = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.TestCase
+        fields = ['id', 'name', 'project', 'relation', 'body']
+
+    def get_body(self, obj):
+        parse = Parse(eval(obj.body))
         return obj.body

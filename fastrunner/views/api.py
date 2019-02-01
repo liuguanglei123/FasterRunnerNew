@@ -25,7 +25,7 @@ class APITemplateView(GenericViewSet):
 
         node = request.query_params["node"]
         project = request.query_params["project"]
-        search = request.query_params["search"]
+        search = '' if  request.query_params.get("search") == None else request.query_params['search']
         queryset = self.get_queryset().filter(project__id=project).order_by('-update_time')
 
         if search != '':

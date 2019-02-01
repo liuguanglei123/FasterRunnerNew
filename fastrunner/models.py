@@ -216,3 +216,16 @@ class TestSuite(BaseTable):
     body = models.TextField("主体信息", null=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     relation = models.IntegerField("节点id", null=False)
+
+class TestCase(BaseTable):
+    '''
+    testcase 测试案例的存储表
+    '''
+    class Meta:
+        verbose_name = "测试案例"
+        db_table = "TestCase"
+
+    name = models.CharField("测试案例名称", null=False, max_length=100)
+    body = models.TextField("主体信息", null=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    relation = models.IntegerField("节点id", null=False)

@@ -74,6 +74,7 @@ class SuiteTemplateView(GenericViewSet):
         """
         新增一个接口
         """
+
         name = request.data['name']
         project = models.Project.objects.get(id=request.data['project'])
         relation = request.data['relation']
