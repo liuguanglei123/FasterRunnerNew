@@ -236,3 +236,29 @@ def run_api(request):
     singleAPI.generateMapping()
     singleAPI.runAPI()
     return Response(singleAPI.summary)
+
+
+@api_view(['POST'])
+def run_casestep(request):
+    """run casestep by tree
+    {
+        project: int
+        relation: list
+        name: str
+        async: bool
+    }
+    """
+    # order by id default
+    run_test_path = settings.RUN_TEST_PATH
+    timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
+    projectPath = os.path.join(run_test_path, timedir)
+    create_scaffold(projectPath)
+
+    allAPI = runner.RunTestCase(project=request.data['project'],relation=request.data['relation'][0],projectPath=projectPath)
+    allAPI.serializeAPI()
+    allAPI.serializeTestCase()
+    allAPI.serializeDebugtalk()
+    allAPI.generateMapping()
+    allAPI.runTestCase()
+
+    return Response(allAPI.summary)

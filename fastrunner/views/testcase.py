@@ -129,8 +129,7 @@ class TestCaseTemplateView(GenericViewSet):
         except ObjectDoesNotExist:
             return Response({'success':False})
 
-        testCase.getList(queryset)
-        testCase.getSingleStep(index)
+        testCase.getSingleStep(index,eval(queryset.body))
         testCase.parse_http()
 
         return Response(testCase.testcase)
@@ -147,14 +146,22 @@ class TestCaseTemplateView(GenericViewSet):
             return Response({'success':False})
 
         testCase = testCaseFormat(relation=relation,project=project)
-        testCase.getList(queryset)
-        testCase.updateStep(eval(request.data['tests']))
+        testCase.srcbody = eval(queryset.body)
+        testCase.newbody={}
+        testCase.newbody['name'] = testCase.srcbody.get('name', '')
+        testCase.newbody['tests'] = copy.deepcopy(testCase.srcbody.get('tests', []))
+        srcindex = 0
+        for each in testCase.newbody['tests']:
+            srcindex += 1
+            each['srcindex'] = srcindex
 
-        new_body = json.dumps(testCase.allStep)
+        testCase.updateStep(request.data)
+
+        new_body = json.dumps(testCase.newbody)
         update_body = {'body': new_body}
 
         try:
-            models.TestSuite.objects.filter(project=project, relation=relation).update(**update_body)
+            models.TestCase.objects.filter(project=project, relation=relation).update(**update_body)
         except ObjectDoesNotExist:
             return Response(response.API_NOT_FOUND)
 

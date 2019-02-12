@@ -943,7 +943,7 @@ class testCaseFormat(object):
         self.allStep =  returnvalue
 
     def updateList(self,srcBody,newBody):
-        self.srcBody = eval(srcBody.body)
+        self.srcBody = json.loads(srcBody.body)
         self.srcTest = copy.deepcopy(self.srcBody['tests'])
         for index,each in enumerate(self.srcTest):
             each['srcindex'] = index + 1
@@ -981,12 +981,17 @@ class testCaseFormat(object):
         }
         self.newbody = json.dumps(tmp_body)
 
+    def getSingleStep(self, index, testCaseBody):
+        srcindex = 0
+        for each in testCaseBody['tests']:
+            srcindex += 1
+            each['srcindex'] = srcindex
 
-    def getSingleStep(self, index):
-        for each in self.allStep['tests']:
+        for each in testCaseBody['tests']:
             if (index == each['srcindex']):
                 self.__specIndexAPI = each
                 self.specAPIid = each['id']
+                break
             else:
                 continue
 
@@ -1204,6 +1209,7 @@ class testCaseFormat(object):
                         "comparator": key,
                         "type": obj[0]
                     })
+
     @staticmethod
     def __get_type(content):
         """
@@ -1227,7 +1233,7 @@ class testCaseFormat(object):
         return var_type[key], content
 
     def updateStep(self,newTestCaseBody):
-        for each in self.allStep.get('tests',[]):
+        for each in self.newbody.get('tests',[]):
             if(each['srcindex'] == newTestCaseBody['srcindex']):
                 each['headers'] = newTestCaseBody['header'].get('header',{})
                 each['extract'] = newTestCaseBody['extract'].get('extract',{})
@@ -1237,5 +1243,5 @@ class testCaseFormat(object):
             else:
                 continue
 
-        for each in self.body.get('tests',[]):
+        for each in self.newbody.get('tests',[]):
             del each['srcindex']

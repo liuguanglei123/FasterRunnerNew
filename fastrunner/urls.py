@@ -156,4 +156,7 @@ urlpatterns = [
         "patch": "updateSingleStep"
     })),
 
+    path('run_casestep/', newrun.run_casestep),
+
+
 ]
