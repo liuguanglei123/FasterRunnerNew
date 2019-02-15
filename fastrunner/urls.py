@@ -138,6 +138,7 @@ urlpatterns = [
     })),
 
     path('run_suitestep/', newrun.run_suitestep),
+    path('run_suitesinglestep/', newrun.run_suitesinglestep),
 
     path('run_api_pk/<int:pk>/', newrun.run_api_pk),
     path('run_api_tree/', newrun.run_api_tree),

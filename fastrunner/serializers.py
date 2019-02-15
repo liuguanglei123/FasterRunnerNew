@@ -67,7 +67,7 @@ class APISerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.API
-        fields = ['id', 'name', 'url', 'method', 'project', 'relation', 'body']
+        fields = ['id', 'name', 'url', 'method', 'project', 'relation', 'body', 'isdeleted']
 
     def get_body(self, obj):
         parse = Parse(eval(obj.body))

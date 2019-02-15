@@ -217,6 +217,7 @@ class TestSuite(BaseTable):
     body = models.TextField("主体信息", null=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     relation = models.IntegerField("节点id", null=False)
+    isdeleted = models.IntegerField("是否已删除", null=False, default=0)
 
 class TestCase(BaseTable):
     '''
@@ -230,3 +231,4 @@ class TestCase(BaseTable):
     body = models.TextField("主体信息", null=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     relation = models.IntegerField("节点id", null=False)
+    isdeleted = models.IntegerField("是否已删除", null=False, default=0)

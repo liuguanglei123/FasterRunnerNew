@@ -165,8 +165,6 @@ def run_suite_tree(request):
 
     return Response(summary)
 
-
-
 @api_view(['POST'])
 def run_suitestep(request):
     """run testsuite by tree
@@ -183,9 +181,34 @@ def run_suitestep(request):
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
 
-    allAPI = runner.RunTestSuite(project=request.data['project'],relation=request.data['relation'][0],projectPath=projectPath)
+    allAPI = runner.RunTestSuite(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath)
     allAPI.serializeAPI()
     allAPI.serializeTestSuite()
+    allAPI.serializeDebugtalk()
+    allAPI.generateMapping()
+    allAPI.runTestSuite()
+
+    return Response(allAPI.summary)
+
+@api_view(['POST'])
+def run_suitesinglestep(request):
+    """run testsuite by tree
+    {
+        project: int
+        relation: list
+        name: str
+        async: bool
+    }
+    """
+    # order by id default
+    run_test_path = settings.RUN_TEST_PATH
+    timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
+    projectPath = os.path.join(run_test_path, timedir)
+    create_scaffold(projectPath)
+
+    allAPI = runner.RunTestSuite(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath)
+    allAPI.serializeAPI()
+    allAPI.serializeSingleStep(request.data['index'])
     allAPI.serializeDebugtalk()
     allAPI.generateMapping()
     allAPI.runTestSuite()

@@ -26,7 +26,7 @@ class APITemplateView(GenericViewSet):
         node = request.query_params["node"]
         project = request.query_params["project"]
         search = '' if  request.query_params.get("search") == None else request.query_params['search']
-        queryset = self.get_queryset().filter(project__id=project).order_by('-update_time')
+        queryset = self.get_queryset().filter(project__id=project,isdeleted=0).order_by('-update_time')
 
         if search != '':
             queryset = queryset.filter(name__contains=search)
@@ -115,10 +115,10 @@ class APITemplateView(GenericViewSet):
 
         try:
             if kwargs.get('pk'):  # 单个删除
-                models.API.objects.get(id=kwargs['pk']).delete()
+                models.API.objects.filter(id=kwargs['pk']).update(isdeleted=1)
             else:
                 for content in request.data:
-                    models.API.objects.get(id=content['id']).delete()
+                    models.API.objects.filter(id=content['id']).update(isdeleted=1)
 
         except ObjectDoesNotExist:
             return Response(response.API_NOT_FOUND)

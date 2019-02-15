@@ -55,7 +55,7 @@ class RunTestSuite(object):
 
     def __init__(self,*args,**kwargs):
         try:
-            self.suiteQuerySet = models.TestSuite.objects.get(project=kwargs['project'], relation=kwargs['relation'])
+            self.suiteQuerySet = models.TestSuite.objects.filter(project=kwargs['project'], relation__in=kwargs['relation'])
         except ObjectDoesNotExist:
             self.msg = 'ObjectDoesNotExist'
 
@@ -66,8 +66,11 @@ class RunTestSuite(object):
         self.__getAllAPIBody__()
 
     def __getAPIList__(self):
-        self.APIList=[]
-        self.tests = eval(self.suiteQuerySet.body)['tests']
+        self.APIList = []
+        self.tests = []
+        for each in self.suiteQuerySet:
+            for eachTest in eval(each.body)['tests']:
+                self.tests.append(eachTest)
         for each in self.tests:
             self.APIList.append(each['id'])
 
@@ -127,55 +130,105 @@ class RunTestSuite(object):
                     tmp.append( { key:value } )
             return tmp
 
-    def serializeTestSuite(self):
-        self.allSuiteStep = []
-        testStepstructure = {
-            'test': {
-                'name': '',
-                'api': '',
-                'variables': '',
-                'validate': '',
-                'extract': ''
+    def serializeSingleStep(self,index):
+        for suite in self.suiteQuerySet:
+            self.allSuiteStep = []
+            testStepstructure = {
+                'test': {
+                    'name': '',
+                    'api': '',
+                    'variables': '',
+                    'validate': '',
+                    'extract': ''
+                }
             }
-        }
-        self.SuiteBody = []
-        self.suitePath = os.path.join(self.__projectPath, 'testcases')
-        for each in self.tests:
-            tmp = copy.deepcopy(testStepstructure)
+            self.SuiteBody = []
+            self.suitePath = os.path.join(self.__projectPath, 'testcases')
+            srcindex = 1
+            for each in eval(suite.body)['tests']:
+                if(index != srcindex):
+                    srcindex = srcindex + 1
+                    continue
+                tmp = copy.deepcopy(testStepstructure)
 
-            try:
-                self.singleAPIQuerySet = models.API.objects.get(id=each['id'])
-            except ObjectDoesNotExist:
-                self.msg = 'ObjectDoesNotExist'
+                try:
+                    self.singleAPIQuerySet = models.API.objects.get(id=each['id'])
+                except ObjectDoesNotExist:
+                    self.msg = 'ObjectDoesNotExist'
 
-            tmp['test']['name'] = each['api']
-            tmp['test']['api'] = 'api/' + self.singleAPIQuerySet.name + '.yml'
-            tmp['test']['validate'] = each.get('validate',[])
+                tmp['test']['name'] = each['api']
+                tmp['test']['api'] = 'api/' + self.singleAPIQuerySet.name + '.yml'
+                tmp['test']['validate'] = each.get('validate', [])
 
-            tmp['test']['variables'] = '' if len(each.get('variables',[]))==0 else self.convertListToDict(each.get('variables',[]),'variables')
-            tmp['test']['extract'] = '' if len(each.get('extract',[])) == 0 else each.get('variables',[])
+                tmp['test']['variables'] = '' if len(each.get('variables', [])) == 0 else self.convertListToDict(
+                    each.get('variables', []), 'variables')
+                tmp['test']['extract'] = each.get('extract', [])
 
-            if (len(tmp['test']['validate']) == 0):
-                del tmp['test']['validate']
-            if (len(tmp['test']['variables']) == ''):
-                del tmp['test']['variables']
-            if (len(tmp['test']['extract']) == ''):
-                del tmp['test']['extract']
+                if (len(tmp['test']['validate']) == 0):
+                    del tmp['test']['validate']
+                if (len(tmp['test']['variables']) == 0):
+                    del tmp['test']['variables']
+                if (len(tmp['test']['extract']) == 0):
+                    del tmp['test']['extract']
+
+                self.SuiteBody.append(copy.deepcopy(tmp))
+                break
+            if (os.path.exists(os.path.join(self.suitePath, suite.name + '.yml'))):
+                return
+
+            file = codecs.open(os.path.join(self.suitePath, suite.name + '.yml'), 'a+', 'utf-8')
+            file.write(yaml.dump(self.SuiteBody, default_flow_style=False))
+            file.flush()
+
+    def serializeTestSuite(self):
+        for eachSuite in self.suiteQuerySet:
+            self.allSuiteStep = []
+            testStepstructure = {
+                'test': {
+                    'name': '',
+                    'api': '',
+                    'variables': '',
+                    'validate': '',
+                    'extract': ''
+                }
+            }
+            self.SuiteBody = []
+            self.suitePath = os.path.join(self.__projectPath, 'testcases')
+            for each in eval(eachSuite.body)['tests']:
+                tmp = copy.deepcopy(testStepstructure)
+
+                try:
+                    self.singleAPIQuerySet = models.API.objects.get(id=each['id'])
+                except ObjectDoesNotExist:
+                    self.msg = 'ObjectDoesNotExist'
+
+                tmp['test']['name'] = each['api']
+                tmp['test']['api'] = 'api/' + self.singleAPIQuerySet.name + '.yml'
+                tmp['test']['validate'] = each.get('validate',[])
+
+                tmp['test']['variables'] = '' if len(each.get('variables',[]))==0 else self.convertListToDict(each.get('variables',[]),'variables')
+                tmp['test']['extract'] = each.get('extract',[])
+
+                if (len(tmp['test']['validate']) == 0):
+                    del tmp['test']['validate']
+                if (len(tmp['test']['variables']) == 0):
+                    del tmp['test']['variables']
+                if (len(tmp['test']['extract']) == 0):
+                    del tmp['test']['extract']
 
 
+                self.SuiteBody.append(copy.deepcopy(tmp))
+            if(os.path.exists(os.path.join(self.suitePath,eachSuite.name + '.yml'))):
+                return
 
-            self.SuiteBody.append(copy.deepcopy(tmp))
-        if(os.path.exists(os.path.join(self.suitePath,self.suiteQuerySet.name + '.yml'))):
-            return
-
-        file = codecs.open(os.path.join(self.suitePath, self.suiteQuerySet.name + '.yml'),'a+','utf-8')
-        file.write(yaml.dump(self.SuiteBody, default_flow_style=False))
-        file.flush()
+            file = codecs.open(os.path.join(self.suitePath, eachSuite.name + '.yml'),'a+','utf-8')
+            file.write(yaml.dump(self.SuiteBody, default_flow_style=False))
+            file.flush()
 
 
     def runTestSuite(self):
         runner = HttpRunner(failfast=False)
-        runner.run(os.path.join(os.path.join(self.suitePath,self.suiteQuerySet.name + '.yml')),mapping=self.__mapping)
+        runner.run(self.suitePath,mapping=self.__mapping)
         self.summary = parse_summary(runner.summary)
 
     def serializeDebugtalk(self):
@@ -210,7 +263,7 @@ class RunAPI(object):
 
         if(kwargs['type'] == 'singleAPI'):
             try:
-                api = models.API.objects.get(id=kwargs['id'])
+                api = models.API.objects.get(id=kwargs['id'],isdeleted=0)
             except ObjectDoesNotExist:
                 self.msg = 'ObjectDoesNotExist'
 
@@ -220,7 +273,7 @@ class RunAPI(object):
             relationList = kwargs['relation']
             self.__project = kwargs['project']
             try:
-                APIList = models.API.objects.filter(relation__in=relationList,project=self.__project)
+                APIList = models.API.objects.filter(relation__in=relationList,project=self.__project,isdeleted=0)
             except ObjectDoesNotExist:
                 self.msg = 'ObjectDoesNotExist'
             for each in APIList:
@@ -374,13 +427,13 @@ class RunTestCase(object):
             tmp['test']['variables'] = '' if len(each.get('variables',[]))==0 else self.convertListToDict(each.get('variables',[]),'variables')
 
             #tmp['test']['extract'] = [] if len(each.get('extract',[])) == 0 else each.get('variables',[])
-            tmp['test']['extract'] = each.get('variables', [])
+            tmp['test']['extract'] = each.get('extract', [])
 
             if (len(tmp['test']['validate']) == 0):
                 del tmp['test']['validate']
-            if (len(tmp['test']['variables']) == ''):
+            if (len(tmp['test']['variables']) == 0):
                 del tmp['test']['variables']
-            if (len(tmp['test']['extract']) == ''):
+            if (len(tmp['test']['extract']) == 0):
                 del tmp['test']['extract']
 
 
