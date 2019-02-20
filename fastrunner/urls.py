@@ -158,6 +158,6 @@ urlpatterns = [
     })),
 
     path('run_casestep/', newrun.run_casestep),
-
+    path('run_casesinglestep/', newrun.run_casesinglestep),
 
 ]

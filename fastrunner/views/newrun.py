@@ -186,9 +186,14 @@ def run_suitestep(request):
     allAPI.serializeTestSuite()
     allAPI.serializeDebugtalk()
     allAPI.generateMapping()
-    allAPI.runTestSuite()
-
-    return Response(allAPI.summary)
+    if (request.data['async'] == True):
+        allAPI.runBackTestSuite(request.data['name'])
+        summary = loader.TEST_NOT_EXISTS
+        summary["msg"] = "接口运行中，请稍后查看报告"
+        return Response(summary)
+    else:
+        allAPI.runTestSuite()
+        return Response(allAPI.summary)
 
 @api_view(['POST'])
 def run_suitesinglestep(request):
@@ -236,8 +241,14 @@ def run_api_tree(request):
     allAPI.serializeAPI()
     allAPI.serializeDebugtalk()
     allAPI.generateMapping()
-    allAPI.runAPI()
-    return Response(allAPI.summary)
+    if (request.data['async'] == True):
+        allAPI.runBackAPI(request.data['name'])
+        summary = loader.TEST_NOT_EXISTS
+        summary["msg"] = "接口运行中，请稍后查看报告"
+        return Response(summary)
+    else:
+        allAPI.runAPI()
+        return Response(allAPI.summary)
 
 @api_view(['POST'])
 def run_api(request):
@@ -277,9 +288,40 @@ def run_casestep(request):
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
 
-    allAPI = runner.RunTestCase(project=request.data['project'],relation=request.data['relation'][0],projectPath=projectPath)
+    allAPI = runner.RunTestCase(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath)
     allAPI.serializeAPI()
     allAPI.serializeTestCase()
+    allAPI.serializeDebugtalk()
+    allAPI.generateMapping()
+    if (request.data['async'] == True):
+        allAPI.runBackTestCase(request.data['name'])
+        summary = loader.TEST_NOT_EXISTS
+        summary["msg"] = "接口运行中，请稍后查看报告"
+        return Response(summary)
+    else:
+        allAPI.runTestCase()
+        return Response(allAPI.summary)
+
+
+@api_view(['POST'])
+def run_casesinglestep(request):
+    """run testsuite by tree
+    {
+        project: int
+        relation: list
+        name: str
+        async: bool
+    }
+    """
+    # order by id default
+    run_test_path = settings.RUN_TEST_PATH
+    timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
+    projectPath = os.path.join(run_test_path, timedir)
+    create_scaffold(projectPath)
+
+    allAPI = runner.RunTestCase(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath)
+    allAPI.serializeAPI()
+    allAPI.serializeSingleStep(request.data['index'])
     allAPI.serializeDebugtalk()
     allAPI.generateMapping()
     allAPI.runTestCase()

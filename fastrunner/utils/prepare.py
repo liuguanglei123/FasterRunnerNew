@@ -85,12 +85,11 @@ def tree_end(params, project):
 
     # remove node testcase
     elif type == 2:
-        case = models.Case.objects. \
+        case = models.TestCase.objects. \
             filter(relation=node, project=project).values('id')
 
         for case_id in case:
-            models.CaseStep.objects.filter(case__id=case_id['id']).delete()
-            models.Case.objects.filter(id=case_id['id']).delete()
+            models.TestCase.objects.filter(id=case_id['id']).update(isdeleted=1)
     elif type == 3:
         sutie = models.TestSuite.objects.filter(relation=node,project=project).values('id')
 

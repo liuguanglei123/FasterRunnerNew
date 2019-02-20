@@ -14,7 +14,7 @@ from httprunner.api import HttpRunner
 from django.core.exceptions import ObjectDoesNotExist
 from fastrunner.utils.loader import parse_summary
 import traceback
-
+from fastrunner.utils.loader import save_summary
 EXEC = sys.executable
 
 if 'uwsgi' in EXEC:
@@ -231,6 +231,11 @@ class RunTestSuite(object):
         runner.run(self.suitePath,mapping=self.__mapping)
         self.summary = parse_summary(runner.summary)
 
+    def runBackTestSuite(self, name):
+        runner = HttpRunner(failfast=False)
+        runner.run(self.suitePath, mapping=self.__mapping)
+        save_summary(name, runner.summary, self.__project)
+
     def serializeDebugtalk(self):
         try:
             queryset = models.Debugtalk.objects.get(project__id=self.__project)
@@ -322,12 +327,17 @@ class RunAPI(object):
         runner.run(self.apiPath,mapping=self.__mapping)
         self.summary = parse_summary(runner.summary)
 
+    def runBackAPI(self, name):
+        runner = HttpRunner(failfast=False)
+        runner.run(self.apiPath, mapping=self.__mapping)
+        save_summary(name, runner.summary, self.__project)
+
 
 class RunTestCase(object):
 
     def __init__(self,*args,**kwargs):
         try:
-            self.caseQuerySet = models.TestCase.objects.get(project=kwargs['project'], relation=kwargs['relation'])
+            self.caseQuerySet = models.TestCase.objects.filter(project=kwargs['project'], relation__in=kwargs['relation'])
         except ObjectDoesNotExist:
             self.msg = 'ObjectDoesNotExist'
 
@@ -338,8 +348,11 @@ class RunTestCase(object):
         self.__getAllAPIBody__()
 
     def __getAPIList__(self):
-        self.APIList=[]
-        self.tests = eval(self.caseQuerySet.body)['tests']
+        self.APIList = []
+        self.tests = []
+        for each in self.caseQuerySet:
+            for eachTest in eval(each.body)['tests']:
+                self.tests.append(eachTest)
         for each in self.tests:
             self.APIList.append(each['id'])
 
@@ -400,57 +413,63 @@ class RunTestCase(object):
             return tmp
 
     def serializeTestCase(self):
-        self.allCaseStep = []
-        testStepstructure = {
-            'test': {
-                'name': '',
-                'api': '',
-                'variables': '',
-                'validate': '',
-                'extract': ''
+        for eachCase in self.caseQuerySet:
+            self.allCaseStep = []
+            testStepstructure = {
+                'test': {
+                    'name': '',
+                    'api': '',
+                    'variables': '',
+                    'validate': '',
+                    'extract': ''
+                }
             }
-        }
-        self.caseBody = []
-        self.casePath = os.path.join(self.__projectPath, 'testcases')
-        for each in self.tests:
-            tmp = copy.deepcopy(testStepstructure)
+            self.CaseBody = []
+            self.casePath = os.path.join(self.__projectPath, 'testcases')
+            for each in eval(eachCase.body)['tests']:
+                tmp = copy.deepcopy(testStepstructure)
 
-            try:
-                self.singleAPIQuerySet = models.API.objects.get(id=each['id'])
-            except ObjectDoesNotExist:
-                self.msg = 'ObjectDoesNotExist'
+                try:
+                    self.singleAPIQuerySet = models.API.objects.get(id=each['id'])
+                except ObjectDoesNotExist:
+                    self.msg = 'ObjectDoesNotExist'
 
-            tmp['test']['name'] = each['api']
-            tmp['test']['api'] = 'api/' + self.singleAPIQuerySet.name + '.yml'
-            tmp['test']['validate'] = each.get('validate',[])
+                tmp['test']['name'] = each['api']
+                tmp['test']['api'] = 'api/' + self.singleAPIQuerySet.name + '.yml'
+                tmp['test']['validate'] = each.get('validate', [])
 
-            tmp['test']['variables'] = '' if len(each.get('variables',[]))==0 else self.convertListToDict(each.get('variables',[]),'variables')
+                tmp['test']['variables'] = '' if len(each.get('variables', [])) == 0 else self.convertListToDict(
+                    each.get('variables', []), 'variables')
+                tmp['test']['extract'] = each.get('extract', [])
 
-            #tmp['test']['extract'] = [] if len(each.get('extract',[])) == 0 else each.get('variables',[])
-            tmp['test']['extract'] = each.get('extract', [])
+                if (len(tmp['test']['validate']) == 0):
+                    del tmp['test']['validate']
+                if (len(tmp['test']['variables']) == 0):
+                    del tmp['test']['variables']
+                if (len(tmp['test']['extract']) == 0):
+                    del tmp['test']['extract']
 
-            if (len(tmp['test']['validate']) == 0):
-                del tmp['test']['validate']
-            if (len(tmp['test']['variables']) == 0):
-                del tmp['test']['variables']
-            if (len(tmp['test']['extract']) == 0):
-                del tmp['test']['extract']
+                self.CaseBody.append(copy.deepcopy(tmp))
+            if (os.path.exists(os.path.join(self.casePath, eachCase.name + '.yml'))):
+                return
 
-
-
-            self.caseBody.append(copy.deepcopy(tmp))
-        if(os.path.exists(os.path.join(self.casePath,self.caseQuerySet.name + '.yml'))):
-            return
-
-        file = codecs.open(os.path.join(self.casePath, self.caseQuerySet.name + '.yml'),'a+','utf-8')
-        file.write(yaml.dump(self.caseBody, default_flow_style=False))
-        file.flush()
+            file = codecs.open(os.path.join(self.casePath, eachCase.name + '.yml'), 'a+', 'utf-8')
+            file.write(yaml.dump(self.CaseBody, default_flow_style=False))
+            file.flush()
 
 
     def runTestCase(self):
         runner = HttpRunner(failfast=False)
-        runner.run(os.path.join(os.path.join(self.casePath,self.caseQuerySet.name + '.yml')),mapping=self.__mapping)
+        runner.run(self.casePath,mapping=self.__mapping)
         self.summary = parse_summary(runner.summary)
+
+    def runBackTestCase(self,name):
+        runner = HttpRunner(failfast=False)
+        runner.run(self.casePath, mapping=self.__mapping)
+        save_summary(name, runner.summary, self.__project)
+        '''self.summary = parse_summary(runner.summary)
+        summary = debug_api(api, project, save=False, config=config)
+        save_summary(name, summary, project)'''
 
     def serializeDebugtalk(self):
         try:
@@ -474,3 +493,53 @@ class RunTestCase(object):
         self.__mapping = {}
         for each in queryset:
             self.__mapping[each.key] = each.value
+
+    def serializeSingleStep(self,index):
+        for step in self.caseQuerySet:
+            self.allCaseStep = []
+            testStepstructure = {
+                'test': {
+                    'name': '',
+                    'api': '',
+                    'variables': '',
+                    'validate': '',
+                    'extract': ''
+                }
+            }
+            self.CaseBody = []
+            self.casePath = os.path.join(self.__projectPath, 'testcases')
+            srcindex = 1
+            for each in eval(step.body)['tests']:
+                if(index != srcindex):
+                    srcindex = srcindex + 1
+                    continue
+                tmp = copy.deepcopy(testStepstructure)
+
+                try:
+                    self.singleAPIQuerySet = models.API.objects.get(id=each['id'])
+                except ObjectDoesNotExist:
+                    self.msg = 'ObjectDoesNotExist'
+
+                tmp['test']['name'] = each['api']
+                tmp['test']['api'] = 'api/' + self.singleAPIQuerySet.name + '.yml'
+                tmp['test']['validate'] = each.get('validate', [])
+
+                tmp['test']['variables'] = '' if len(each.get('variables', [])) == 0 else self.convertListToDict(
+                    each.get('variables', []), 'variables')
+                tmp['test']['extract'] = each.get('extract', [])
+
+                if (len(tmp['test']['validate']) == 0):
+                    del tmp['test']['validate']
+                if (len(tmp['test']['variables']) == 0):
+                    del tmp['test']['variables']
+                if (len(tmp['test']['extract']) == 0):
+                    del tmp['test']['extract']
+
+                self.CaseBody.append(copy.deepcopy(tmp))
+                break
+            if (os.path.exists(os.path.join(self.casePath, step.name + '.yml'))):
+                return
+
+            file = codecs.open(os.path.join(self.casePath, step.name + '.yml'), 'a+', 'utf-8')
+            file.write(yaml.dump(self.CaseBody, default_flow_style=False))
+            file.flush()

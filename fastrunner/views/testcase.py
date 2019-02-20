@@ -34,7 +34,13 @@ class TestCaseTemplateView(GenericViewSet):
         try:
             queryset = self.get_queryset().get(project=request.query_params["project"], relation=request.query_params["node"])
         except ObjectDoesNotExist:
-            return HttpResponse(json.dumps(''),content_type='application/json')
+            return HttpResponse(json.dumps({
+            'id':'',
+            'name': '',
+            'maxindex': 0,
+            'tests': [],
+            'empty':True,
+        }),content_type='application/json')
 
         testCase.getList(queryset)
 
