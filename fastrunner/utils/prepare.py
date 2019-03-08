@@ -48,6 +48,8 @@ def project_init(project):
     models.Relation.objects.create(project=project, tree=tree)
     # 自动生成Test Tree
     models.Relation.objects.create(project=project, type=2, tree=tree)
+    # 自动生成Testsuite
+    models.Relation.objects.create(project=project, type=3, tree=tree)
 
 
 def project_end(project):

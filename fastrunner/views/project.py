@@ -175,7 +175,12 @@ class TreeView(APIView):
             return Response(response.KEY_MISS)
 
         except ObjectDoesNotExist:
-            return Response(response.SYSTEM_ERROR)
+            return Response({
+                "tree": [],
+                "id": tree.id,
+                "success": True,
+                "max": 0
+            })
 
         body = eval(tree.tree) # list
         tree = {

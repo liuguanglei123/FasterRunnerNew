@@ -8,8 +8,11 @@ import os,time
 from httprunner.utils import create_scaffold
 from fastrunner.utils import runner
 import traceback
+
 """运行方式
 """
+import logging
+logger = logging.getLogger('django')
 
 
 @api_view(['POST'])
@@ -28,11 +31,12 @@ def run_api(request):
 def run_api_pk(request, **kwargs):
     """run api by pk
     """
-
+    logger.debug("run api start")
     run_test_path = settings.RUN_TEST_PATH
     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
+
 
     singleAPI = runner.RunAPI(type="singleAPI",id=kwargs['pk'],projectPath=projectPath)
     singleAPI.serializeAPI()

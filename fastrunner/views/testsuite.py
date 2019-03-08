@@ -122,6 +122,7 @@ class SuiteTemplateView(GenericViewSet):
             if(each_new.get('flag','') == 'add'):
                 del each_new['srcindex']
                 tmp.append(each_new)
+                
                 continue
             for each_src in src_tests:
                 if(each_src.get('srcindex',-1) == each_new.get('srcindex',-2) and each_new['srcindex'] != 0 ):

@@ -22,6 +22,11 @@ from requests_toolbelt import MultipartEncoder
 from fastrunner import models
 from fastrunner.utils.parser import Format
 
+
+import logging
+run_logger = logging.getLogger('django')
+
+
 logger.setup_logger('DEBUG')
 
 TEST_NOT_EXISTS = {
@@ -333,9 +338,13 @@ def parse_summary(summary):
                     if isinstance(value, RequestsCookieJar):
                         each[key] = requests.utils.dict_from_cookiejar(value)
 
-                if "text/html" in each["response"]["content_type"]:
-                    each["response"]["content"] = \
-                    BeautifulSoup(each["response"]["content"], features="html.parser").prettify()
+                try:
+                    if "text/html" in each["response"]["content_type"]:
+                        each["response"]["text"] = \
+                        BeautifulSoup(each["response"]["text"], features="html.parser").prettify()
+                except:
+                    run_logger.error("响应消息中带有test/html，但是解析失败")
+                    run_logger.error(record)
 
     return summary
 
