@@ -129,8 +129,8 @@ class SuiteTemplateView(GenericViewSet):
                     tmp.append(each_src)
                     break
         tmp_body = {
-            'name':src_data.name,
-            'def':src_data.name,
+            'name':request.data['name'],
+            'def':request.data['name'],
             'tests':tmp
         }
         tmp_body = json.dumps(tmp_body)
