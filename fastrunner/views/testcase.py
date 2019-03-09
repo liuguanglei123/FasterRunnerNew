@@ -5,7 +5,6 @@ from rest_framework.response import Response
 from fastrunner.utils import response
 from fastrunner.utils.parser import Format, Parse,SuiteFormat,SuiteBodyFormat,TestSuiteFormat,testCaseFormat
 from django.db import DataError
-from ..utils.parser import getApiFromSuite,getApiFromtestCase
 from django.http import HttpResponse
 from httprunner.api import HttpRunner
 from django.core.exceptions import ObjectDoesNotExist

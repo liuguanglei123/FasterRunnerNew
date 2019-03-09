@@ -384,16 +384,19 @@ def getApiFromSuite(queryset):
 
     return apilist
 
-def getApiFromtestCase(queryset):
-    apilist = []
+def getidListFromtestCase(queryset):
+    apiAndSuitelist = []
     try:
         body = eval(queryset.body)
         for test in body['tests']:
-            apilist.append(test['id'])
+            if( 'api' in test.keys() ):
+                apiAndSuitelist.append({'api':test['id']})
+            if ('testcase' in test.keys()):
+                apiAndSuitelist.append({'testcase': test['id']})
     except Exception as err:
         return []
 
-    return apilist
+    return apiAndSuitelist
 
 class SuiteFormat(object):
 
@@ -921,24 +924,41 @@ class testCaseFormat(object):
         returnvalue['id'] = queryset.id
         returnvalue['name'] = queryset.name
 
-        containedApi = getApiFromtestCase(queryset)
+        containedId = getidListFromtestCase(queryset)
         index = 0 #index是从1开始计算的，第一个案例的顺序值是1，第二个是2
-        for each in containedApi:
-            try:
-                apiQueryset = models.API.objects.get(project=self.__project,id=each)
-            except:
-                continue
-            index = index + 1
-            returnvalue['tests'].append(
-                {
-                    'index':index,
-                    'srcindex': index,
-                    'id':apiQueryset.id,
-                    'method':apiQueryset.method,
-                    'name':apiQueryset.name,
-                    'url':apiQueryset.url,
-                    'flag':'' #接口返回的所有flag都是空的，前台如果进行加减操作，会对flag字段进行操作，置为add或者reduce
-                })
+        for each in containedId:
+            if('api' in each.keys()):
+                try:
+                    apiQueryset = models.API.objects.get(project=self.__project,id=each['api'])
+                except:
+                    continue
+                index = index + 1
+                returnvalue['tests'].append(
+                    {
+                        'index': index,
+                        'srcindex': index,
+                        'id': apiQueryset.id,
+                        'method': apiQueryset.method,
+                        'name': apiQueryset.name,
+                        'url': apiQueryset.url,
+                        'flag': ''  # 接口返回的所有flag都是空的，前台如果进行加减操作，会对flag字段进行操作，置为add或者reduce
+                    })
+            elif('testcase' in each.keys()):
+                try:
+                    suiteQueryset = models.TestSuite.objects.get(project=self.__project,id=each['testcase'])
+                except:
+                    continue
+                index = index + 1
+                returnvalue['tests'].append(
+                    {
+                        'index': index,
+                        'srcindex': index,
+                        'id': suiteQueryset.id,
+                        'method': 'SUITE',
+                        'name': suiteQueryset.name,
+                        'flag': ''  # 接口返回的所有flag都是空的，前台如果进行加减操作，会对flag字段进行操作，置为add或者reduce
+                    })
+
         returnvalue['maxindex'] = index
         self.allStep =  returnvalue
 
@@ -952,10 +972,14 @@ class testCaseFormat(object):
         for each in newBody:
             tmp = {}
             tmp['id'] = each['id']
-            tmp['api'] = each['name']
             tmp['srcindex'] = each.get('srcindex', 0)
             if (each.get('flag', '') == 'add'):
                 tmp['flag'] = each.get('flag', '')
+            if(each.get('method','')=='suite'):
+                tmp['testcase'] = each['name']
+            else:
+                tmp['api'] = each['name']
+
             tmpTests.append(tmp)
 
         tmpNewBody = []
