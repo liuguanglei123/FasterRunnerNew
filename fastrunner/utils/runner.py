@@ -346,15 +346,24 @@ class RunTestCase(object):
         self.__projectPath = kwargs['projectPath']
         self.__getAPIList__()
         self.__getAllAPIBody__()
+        self.__getAllSuiteBody__()
 
     def __getAPIList__(self):
         self.APIList = []
-        self.tests = []
+        self.SuiteList = []
+        self.APItests = []
+        self.SuiteTests = []
         for each in self.caseQuerySet:
             for eachTest in eval(each.body)['tests']:
-                self.tests.append(eachTest)
-        for each in self.tests:
+                if('api' in eachTest.keys()):
+                    self.APItests.append(eachTest)
+                elif('testcase' in eachTest.keys()):
+                    self.SuiteTests.append(eachTest)
+        for each in self.APItests:
             self.APIList.append(each['id'])
+        for each in self.SuiteTests:
+            self.SuiteList.append(each['id'])
+
 
     def __getAllAPIBody__(self):
         self.allAPIBody = []
@@ -365,6 +374,16 @@ class RunTestCase(object):
                 continue
 
             self.allAPIBody.append(eval(apiQueryset.body))
+
+    def __getAllSuiteBody__(self):
+        self.allSuiteBody = []
+        for each in self.SuiteList:
+            try:
+                suiteQueryset = models.TestSuite.objects.get(project=self.__project,id=each)
+            except:
+                continue
+
+            self.allSuiteBody.append(eval(suiteQueryset.body))
 
     def serializeAPI(self):
         self.apiPath = os.path.join(self.__projectPath,'api')

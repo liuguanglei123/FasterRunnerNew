@@ -294,6 +294,7 @@ def run_casestep(request):
 
     allAPI = runner.RunTestCase(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath)
     allAPI.serializeAPI()
+    allAPI.serializeSuite()
     allAPI.serializeTestCase()
     allAPI.serializeDebugtalk()
     allAPI.generateMapping()
