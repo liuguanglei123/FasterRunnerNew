@@ -4,4 +4,4 @@ djangorestframework == 3.8.2
 HttpRunner
 apscheduler == 3.5.3
 beautifulsoup4 == 4.6.3
-mysqlclient == 1.3.13
+mysqlclient
