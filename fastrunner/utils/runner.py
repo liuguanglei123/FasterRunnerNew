@@ -344,25 +344,52 @@ class RunTestCase(object):
         self.__project = kwargs['project']
         self.__relation = kwargs['relation']
         self.__projectPath = kwargs['projectPath']
-        self.__getAPIList__()
+        self.__getAPIListFromCase__()
         self.__getAllAPIBody__()
         self.__getAllSuiteBody__()
 
-    def __getAPIList__(self):
+    def __getAPIListFromCase__(self):
         self.APIList = []
         self.SuiteList = []
         self.APItests = []
         self.SuiteTests = []
         for each in self.caseQuerySet:
             for eachTest in eval(each.body)['tests']:
-                if('api' in eachTest.keys()):
+                if ('api' in eachTest.keys()):
                     self.APItests.append(eachTest)
-                elif('testcase' in eachTest.keys()):
+                    self.APIList.append(eachTest['id'])
+                elif ('testcase' in eachTest.keys()):
                     self.SuiteTests.append(eachTest)
-        for each in self.APItests:
-            self.APIList.append(each['id'])
-        for each in self.SuiteTests:
-            self.SuiteList.append(each['id'])
+                    self.SuiteList.append(eachTest['id'])
+        if(len(self.SuiteList)!=0):
+            self.__getAPIListFromSuite__()
+
+    def __getAPIListFromSuite__(self):
+        for each in self.SuiteList:
+            try:
+                suiteQuerySet = models.TestSuite.objects.get(project=self.__project, id=each)
+            except ObjectDoesNotExist:
+                continue
+
+            for each in eval(suiteQuerySet.body)['tests']:
+                self.APItests.append(each)
+                self.APIList.append(each['id'])
+
+    # def __getAPIList__(self):
+    #     self.APIList = []
+    #     self.SuiteList = []
+    #     self.APItests = []
+    #     self.SuiteTests = []
+    #     for each in self.caseQuerySet:
+    #         for eachTest in eval(each.body)['tests']:
+    #             if('api' in eachTest.keys()):
+    #                 self.APItests.append(eachTest)
+    #             elif('testcase' in eachTest.keys()):
+    #                 self.SuiteTests.append(eachTest)
+    #     for each in self.APItests:
+    #         self.APIList.append(each['id'])
+    #     for each in self.SuiteTests:
+    #         self.SuiteList.append(each['id'])
 
 
     def __getAllAPIBody__(self):
@@ -410,30 +437,9 @@ class RunTestCase(object):
             file.write(yaml.dump(singleAPI,default_flow_style=False))
             file.flush()
 
-
-    def convertListToDict(self,dictInList,type):
-        if(type == 'variables'):
-            if(len(dictInList) == 0):
-                return ''
-            tmp = {}
-            for each in dictInList:
-                for key,value in each.items():
-                    tmp[key] = value
-            return tmp
-
-    def convertListToList(self,dict,type):
-        if(type == 'extract'):
-            if(len(dict) == 0):
-                return ''
-            tmp = []
-            for each in dict:
-                for key,value in each.items():
-                    tmp.append( { key:value } )
-            return tmp
-
-    def serializeTestCase(self):
-        for eachCase in self.caseQuerySet:
-            self.allCaseStep = []
+    def serializeSuite(self):
+        for eachSuite in self.allSuiteBody:
+            self.allSuiteStep = []
             testStepstructure = {
                 'test': {
                     'name': '',
@@ -443,9 +449,9 @@ class RunTestCase(object):
                     'extract': ''
                 }
             }
-            self.CaseBody = []
+            self.SuiteBody = []
             self.casePath = os.path.join(self.__projectPath, 'testcases')
-            for each in eval(eachCase.body)['tests']:
+            for each in eachSuite['tests']:
                 tmp = copy.deepcopy(testStepstructure)
 
                 try:
@@ -468,10 +474,85 @@ class RunTestCase(object):
                 if (len(tmp['test']['extract']) == 0):
                     del tmp['test']['extract']
 
+                self.SuiteBody.append(copy.deepcopy(tmp))
+            if (os.path.exists(os.path.join(self.casePath, eachSuite['name'] + '.yml'))):
+                continue
+
+            file = codecs.open(os.path.join(self.casePath, eachSuite['name'] + '.yml'), 'a+', 'utf-8')
+            try:
+                file.write(yaml.dump(self.SuiteBody, default_flow_style=False))
+            except:
+                traceback.print_exc()
+            file.flush()
+
+    def convertListToDict(self,dictInList,type):
+        if(type == 'variables'):
+            if(len(dictInList) == 0):
+                return ''
+            tmp = {}
+            for each in dictInList:
+                for key,value in each.items():
+                    tmp[key] = value
+            return tmp
+
+    def convertListToList(self,dict,type):
+        if(type == 'extract'):
+            if(len(dict) == 0):
+                return ''
+            tmp = []
+            for each in dict:
+                for key,value in each.items():
+                    tmp.append( { key:value } )
+            return tmp
+
+    def serializeTestCase(self):
+        self.needRunCase = []
+        for eachCase in self.caseQuerySet:
+            self.allCaseStep = []
+            testStepstructure = {
+                'test': {
+                    'name': '',
+                    'variables': '',
+                    'validate': '',
+                    'extract': ''
+                }
+            }
+            self.CaseBody = []
+            self.casePath = os.path.join(self.__projectPath, 'testcases')
+            for each in eval(eachCase.body)['tests']:
+                tmp = copy.deepcopy(testStepstructure)
+
+                if('api' in each.keys()):
+                    try:
+                        QuerySet = models.API.objects.get(id=each['id'])
+                    except ObjectDoesNotExist:
+                        self.msg = 'ObjectDoesNotExist'
+                    tmp['test']['name'] = each['api']
+                    tmp['test']['api'] = 'api/' + QuerySet.name + '.yml'
+                elif('testcase' in each.keys()):
+                    try:
+                        QuerySet = models.TestSuite.objects.get(id=each['id'])
+                    except ObjectDoesNotExist:
+                        self.msg = 'ObjectDoesNotExist'
+                    tmp['test']['name'] = each['testcase']
+                    tmp['test']['testcase'] = 'testcases/' + QuerySet.name + '.yml'
+                tmp['test']['validate'] = each.get('validate', [])
+
+                tmp['test']['variables'] = '' if len(each.get('variables', [])) == 0 else self.convertListToDict(
+                    each.get('variables', []), 'variables')
+                tmp['test']['extract'] = each.get('extract', [])
+
+                if (len(tmp['test']['validate']) == 0):
+                    del tmp['test']['validate']
+                if (len(tmp['test']['variables']) == 0):
+                    del tmp['test']['variables']
+                if (len(tmp['test']['extract']) == 0):
+                    del tmp['test']['extract']
+
                 self.CaseBody.append(copy.deepcopy(tmp))
             if (os.path.exists(os.path.join(self.casePath, eachCase.name + '.yml'))):
                 return
-
+            self.needRunCase.append(os.path.join(self.casePath, eachCase.name + '.yml'))
             file = codecs.open(os.path.join(self.casePath, eachCase.name + '.yml'), 'a+', 'utf-8')
             file.write(yaml.dump(self.CaseBody, default_flow_style=False))
             file.flush()
@@ -479,12 +560,27 @@ class RunTestCase(object):
 
     def runTestCase(self):
         runner = HttpRunner(failfast=False)
-        runner.run(self.casePath,mapping=self.__mapping)
-        self.summary = parse_summary(runner.summary)
+        summary = {}
+        for path in self.needRunCase:
+            runner.run(path,mapping=self.__mapping)
+            if(len(summary) == 0):
+                summary = runner.summary
+            else:
+                summary['time']['duration'] += runner.summary['time']['duration']
+                summary['stat']['teststeps']['total'] += runner.summary['stat']['teststeps']['total']
+                summary['stat']['teststeps']['successes'] += runner.summary['stat']['teststeps']['successes']
+                summary['stat']['teststeps']['failures'] += runner.summary['stat']['teststeps']['failures']
+                summary['stat']['teststeps']['errors'] += runner.summary['stat']['teststeps']['errors']
+                summary['stat']['teststeps']['skipped'] += runner.summary['stat']['teststeps']['skipped']
+                for each in runner.summary['details']:
+                    summary['details'].append(each)
+
+                pass
+        self.summary = parse_summary(summary)
 
     def runBackTestCase(self,name):
         runner = HttpRunner(failfast=False)
-        runner.run(self.casePath, mapping=self.__mapping)
+        runner.run(self.needRunCase, mapping=self.__mapping)
         save_summary(name, runner.summary, self.__project)
         '''self.summary = parse_summary(runner.summary)
         summary = debug_api(api, project, save=False, config=config)

@@ -21,6 +21,7 @@ from requests_toolbelt import MultipartEncoder
 
 from fastrunner import models
 from fastrunner.utils.parser import Format
+import traceback
 
 
 import logging
@@ -322,29 +323,70 @@ def back_async(func):
 def parse_summary(summary):
     """序列化summary
     """
-    for detail in summary["details"]:
-
-        for record in detail["records"]:
-
-            for each in record['meta_datas']['data']:
-                for key,value in each['request'].items():
-                    if isinstance(value, bytes):
-                        each[key] = value.decode("utf-8")
-                    if isinstance(value, RequestsCookieJar):
-                        each[key] = requests.utils.dict_from_cookiejar(value)
-                for key, value in each["response"].items():
-                    if isinstance(value, bytes):
-                        each[key] = value.decode("utf-8")
-                    if isinstance(value, RequestsCookieJar):
-                        each[key] = requests.utils.dict_from_cookiejar(value)
-
+    summary['details_bak'] = copy.deepcopy(summary['details'])
+    for eachrecord in summary['details_bak']:
+        eachrecord['records'].clear()
+    for index,detail in enumerate(summary["details"]):
+        while len(detail['records']) > 0:
+            record = detail['records'].pop(0)
+            if(isinstance(record['meta_datas'],dict)):
                 try:
-                    if "text/html" in each["response"]["content_type"]:
-                        each["response"]["text"] = \
-                        BeautifulSoup(each["response"]["text"], features="html.parser").prettify()
+                    summary['details_bak'][index]['records'].append(copy.deepcopy(record))
                 except:
-                    run_logger.error("响应消息中带有test/html，但是解析失败")
-                    run_logger.error(record)
+                    traceback.print_exc()
+            elif(isinstance(record['meta_datas'],list)):
+                for each_meta_datas in record['meta_datas']:
+                    record_bak = copy.deepcopy(record)
+                    record_bak['meta_datas'].clear()
+                    record_bak['meta_datas'] = copy.deepcopy(each_meta_datas)
+                    record_bak['name'] = each_meta_datas['name']
+                    summary['details_bak'][index]['records'].append(copy.deepcopy(record_bak))
+    del summary['details']
+    summary['details'] = summary.pop('details_bak')
+
+    for detail in summary["details"]:
+        for record in detail["records"]:
+            if(isinstance(record['meta_datas'],list)):
+                for each_meta_datas in record['meta_datas']:
+                    for each in each_meta_datas['data']:
+                        for key, value in each['request'].items():
+                            if isinstance(value, bytes):
+                                each[key] = value.decode("utf-8")
+                            if isinstance(value, RequestsCookieJar):
+                                each[key] = requests.utils.dict_from_cookiejar(value)
+                        for key, value in each["response"].items():
+                            if isinstance(value, bytes):
+                                each[key] = value.decode("utf-8")
+                            if isinstance(value, RequestsCookieJar):
+                                each[key] = requests.utils.dict_from_cookiejar(value)
+
+                        try:
+                            if "text/html" in each["response"]["content_type"]:
+                                each["response"]["text"] = \
+                                    BeautifulSoup(each["response"]["text"], features="html.parser").prettify()
+                        except:
+                            run_logger.error("响应消息中带有text/html，但是解析失败")
+                            run_logger.error(record)
+            elif(isinstance(record['meta_datas'],dict)):
+                for each in record['meta_datas']['data']:
+                    for key,value in each['request'].items():
+                        if isinstance(value, bytes):
+                            each[key] = value.decode("utf-8")
+                        if isinstance(value, RequestsCookieJar):
+                            each[key] = requests.utils.dict_from_cookiejar(value)
+                    for key, value in each["response"].items():
+                        if isinstance(value, bytes):
+                            each[key] = value.decode("utf-8")
+                        if isinstance(value, RequestsCookieJar):
+                            each[key] = requests.utils.dict_from_cookiejar(value)
+
+                    try:
+                        if "text/html" in each["response"]["content_type"]:
+                            each["response"]["text"] = \
+                            BeautifulSoup(each["response"]["text"], features="html.parser").prettify()
+                    except:
+                        run_logger.error("响应消息中带有text/html，但是解析失败")
+                        run_logger.error(record)
 
     return summary
 

@@ -908,7 +908,10 @@ class testCaseFormat(object):
         for each in testBody:
             tmp = {}
             tmp['id'] = each['id']
-            tmp['api'] = each['name']
+            if (each.get('method', '') == 'suite'):
+                tmp['testcase'] = each['name']
+            else:
+                tmp['api'] = each['name']
             self.tests.append(tmp)
 
 
