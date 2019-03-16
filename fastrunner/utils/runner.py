@@ -578,6 +578,11 @@ class RunTestCase(object):
                 pass
         self.summary = parse_summary(summary)
 
+    def runSingleStep(self):
+        runner = HttpRunner(failfast=False)
+        runner.run(self.casePath, mapping=self.__mapping)
+        self.summary = parse_summary(runner.summary)
+
     def runBackTestCase(self,name):
         runner = HttpRunner(failfast=False)
         runner.run(self.needRunCase, mapping=self.__mapping)

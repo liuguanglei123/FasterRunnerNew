@@ -1067,7 +1067,7 @@ class testCaseFormat(object):
             self.singleAPIBody['srcAPI'][each] = apiBody.get(each, [])
 
         # 初始化重定义数据
-        self.singleAPIBody['name'] = self.__specIndexAPI.get('api', '')
+        self.singleAPIBody['name'] = self.__specIndexAPI.get('name', '')
         self.singleAPIBody['id'] = self.__specIndexAPI.get('id', '')
         self.singleAPIBody['srcindex'] = self.__specIndexAPI.get('srcindex')
         self.singleAPIBody['body']['headers'] = self.__specIndexAPI.get('headers', {})
@@ -1110,7 +1110,7 @@ class testCaseFormat(object):
             'suiteStep': suiteStep,
             'apiStep': apiStep
         }
-        self.testcase['name'] = self.singleAPIBody['srcAPI']['name']
+        self.testcase['name'] = self.singleAPIBody['name'] if(self.singleAPIBody.get('name') !=  '') else self.singleAPIBody['srcAPI']['name']
         self.testcase['method'] = self.singleAPIBody['srcAPI']['method']
         self.testcase['url'] = self.singleAPIBody['srcAPI']['url']
         self.testcase['srcindex'] = self.singleAPIBody['srcindex']
@@ -1266,6 +1266,7 @@ class testCaseFormat(object):
                 each['extract'] = newTestCaseBody['extract'].get('extract',{})
                 each['validate'] = newTestCaseBody['validate'].get('validate',{})
                 each['variables'] = newTestCaseBody['variables'].get('variables',{})
+                each['name'] = newTestCaseBody.get('name',{})
                 break
             else:
                 continue

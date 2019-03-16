@@ -307,7 +307,6 @@ def run_casestep(request):
         allAPI.runTestCase()
         return Response(allAPI.summary)
 
-
 @api_view(['POST'])
 def run_casesinglestep(request):
     """run testsuite by tree
@@ -329,6 +328,6 @@ def run_casesinglestep(request):
     allAPI.serializeSingleStep(request.data['index'])
     allAPI.serializeDebugtalk()
     allAPI.generateMapping()
-    allAPI.runTestCase()
+    allAPI.runSingleStep()
 
     return Response(allAPI.summary)
