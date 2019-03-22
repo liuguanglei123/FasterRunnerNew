@@ -927,6 +927,8 @@ class testCaseFormat(object):
         returnvalue['id'] = queryset.id
         returnvalue['name'] = queryset.name
 
+        srcBody = eval(queryset.body)
+
         containedId = getidListFromtestCase(queryset)
         index = 0 #index是从1开始计算的，第一个案例的顺序值是1，第二个是2
         for each in containedId:
@@ -935,6 +937,8 @@ class testCaseFormat(object):
                     apiQueryset = models.API.objects.get(project=self.__project,id=each['api'])
                 except:
                     continue
+                name = srcBody['tests'][index].get('name') if(srcBody['tests'][index].get('name')) else apiQueryset.name
+
                 index = index + 1
                 returnvalue['tests'].append(
                     {
@@ -942,7 +946,7 @@ class testCaseFormat(object):
                         'srcindex': index,
                         'id': apiQueryset.id,
                         'method': apiQueryset.method,
-                        'name': apiQueryset.name,
+                        'name': name,
                         'url': apiQueryset.url,
                         'flag': ''  # 接口返回的所有flag都是空的，前台如果进行加减操作，会对flag字段进行操作，置为add或者reduce
                     })
@@ -1060,7 +1064,7 @@ class testCaseFormat(object):
         for each in ['method', 'url', 'json']:
             self.singleAPIBody['srcAPI'][each] = apiBody['request'].get(each, '')
 
-        for each in ['headers', 'param', 'data']:
+        for each in ['headers', 'params', 'data']:
             self.singleAPIBody['srcAPI'][each] = apiBody['request'].get(each, {})
 
         for each in ['validate', 'extract', 'variables', 'setup_hooks', 'teardown_hooks']:
