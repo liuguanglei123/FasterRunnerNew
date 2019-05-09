@@ -17,7 +17,8 @@ def get_project_detail(pk):
     项目详细统计信息
     """
     api_count = get_counter(models.API, pk=pk)
-    case_count = get_counter(models.Case, pk=pk)
+    suite_count = get_counter(models.TestSuite, pk=pk)
+    case_count = get_counter(models.TestCase, pk=pk)
     team_count = get_counter(models.Team, pk=pk)
     config_count = get_counter(models.Config, pk=pk)
     variables_count = get_counter(models.Variables, pk=pk)
@@ -25,6 +26,7 @@ def get_project_detail(pk):
 
     return {
         "api_count": api_count,
+        "suite_count":suite_count,
         "case_count": case_count,
         "team_count": team_count,
         "config_count": config_count,
