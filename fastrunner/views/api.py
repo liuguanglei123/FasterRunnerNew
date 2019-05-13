@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from fastrunner.utils import response
 from fastrunner.utils.parser import Format, Parse
 from django.db import DataError
+from fastrunner.utils.tree import getNodeIdList
 
 
 class APITemplateView(GenericViewSet):
@@ -25,14 +26,19 @@ class APITemplateView(GenericViewSet):
 
         node = request.query_params["node"]
         project = request.query_params["project"]
+
+        tree = models.Relation.objects.get(project__id=project, type=1)
+        body = eval(tree.tree)
+        nodeList = getNodeIdList(node,body) if node!='' else []
+
         search = '' if  request.query_params.get("search") == None else request.query_params['search']
         queryset = self.get_queryset().filter(project__id=project,isdeleted=0).order_by('-update_time')
 
         if search != '':
             queryset = queryset.filter(name__contains=search)
 
-        if node != '':
-            queryset = queryset.filter(relation=node)
+        if len(nodeList)>0:
+            queryset = queryset.filter(relation__in=nodeList)
 
         pagination_queryset = self.paginate_queryset(queryset)
         serializer = self.get_serializer(pagination_queryset, many=True)

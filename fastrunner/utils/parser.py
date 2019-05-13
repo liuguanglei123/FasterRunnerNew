@@ -672,7 +672,7 @@ class TestSuiteFormat(object):
         for each in ['method', 'url','json']:
             self.singleAPIBody['srcAPI'][each] = apiBody['request'].get(each, '')
 
-        for each in ['headers', 'param', 'data']:
+        for each in ['headers', 'params', 'data']:
             self.singleAPIBody['srcAPI'][each]  = apiBody['request'].get(each, {})
 
         for each in ['validate', 'extract', 'variables', 'setup_hooks', 'teardown_hooks']:
