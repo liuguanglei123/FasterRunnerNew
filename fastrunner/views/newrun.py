@@ -38,15 +38,13 @@ def run_api_pk(request, **kwargs):
     create_scaffold(projectPath)
 
 
-    singleAPI = runner.RunAPI(type="singleAPI",id=kwargs['pk'],projectPath=projectPath)
+    singleAPI = runner.RunAPI(type="singleAPI",id=kwargs['pk'],projectPath=projectPath,config=request.query_params['config'])
     singleAPI.serializeAPI()
     singleAPI.serializeDebugtalk()
     singleAPI.generateMapping()
+    singleAPI.serializeTestCase()#增加了config配置以后，就需要在testcases或者testsuites目录中执行api接口的测试，否则无法引入config，这里选择的是testcases级别
     singleAPI.runAPI()
     return Response(singleAPI.summary)
-
-
-
 
 
 @api_view(["POST"])
@@ -241,10 +239,11 @@ def run_api_tree(request):
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
 
-    allAPI = runner.RunAPI(type="APITree", relation=request.data['relation'],project=request.data['project'], projectPath=projectPath)
+    allAPI = runner.RunAPI(type="APITree", relation=request.data['relation'],project=request.data['project'], projectPath=projectPath,config=request.data['config'])
     allAPI.serializeAPI()
     allAPI.serializeDebugtalk()
     allAPI.generateMapping()
+    allAPI.serializeTestCase()#增加了config配置以后，就需要在testcases或者testsuites目录中执行api接口的测试，否则无法引入config，这里选择的是testcases级别
     if (request.data['async'] == True):
         allAPI.runBackAPI(request.data['name'])
         summary = loader.TEST_NOT_EXISTS
@@ -265,13 +264,14 @@ def run_api(request):
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
     try:
-        singleAPI = runner.RunAPI(type="debugAPI",name=api.name,project=api.project,projectPath=projectPath,APIBody=api.testcase)
+        singleAPI = runner.RunAPI(type="debugAPI",name=api.name,project=api.project,projectPath=projectPath,APIBody=api.testcase,config=request.data['config'])
     except:
         traceback.print_exc()
 
     singleAPI.serializeAPI()
     singleAPI.serializeDebugtalk()
     singleAPI.generateMapping()
+    singleAPI.serializeTestCase()
     singleAPI.runAPI()
     return Response(singleAPI.summary)
 

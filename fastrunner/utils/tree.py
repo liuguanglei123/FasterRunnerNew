@@ -39,13 +39,23 @@ def get_file_size(size):
 def getNodeIdList(nodeId,treeBody):
     nodeList = []
     for each in treeBody:
-        if(each['id'] == int(nodeId)):
-            nodeList.append(each['id'])
-            if(len(each['children'])>0):
-                nodeList.extend(getAllChildId(each['children']))
-            break
+        if(isinstance(nodeId,list)):
+            for eachNode in nodeId:
+                if (each['id'] == int(eachNode)):
+                    nodeList.append(each['id'])
+                    if (len(each['children']) > 0):
+                        nodeList.extend(getAllChildId(each['children']))
+                    break
+                else:
+                    nodeList.extend(getNodeIdList(nodeId, each['children']))
         else:
-            nodeList.extend(getNodeIdList(nodeId,each['children']))
+            if(each['id'] == int(nodeId)):
+                nodeList.append(each['id'])
+                if(len(each['children'])>0):
+                    nodeList.extend(getAllChildId(each['children']))
+                break
+            else:
+                nodeList.extend(getNodeIdList(nodeId,each['children']))
     return nodeList
 
 def getAllChildId(treeList):

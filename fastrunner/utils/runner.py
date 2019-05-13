@@ -15,6 +15,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from fastrunner.utils.loader import parse_summary
 import traceback
 from fastrunner.utils.loader import save_summary
+from fastrunner.utils.tree import getNodeIdList
+
 EXEC = sys.executable
 
 if 'uwsgi' in EXEC:
@@ -265,6 +267,7 @@ class RunAPI(object):
     def __init__(self,*args,**kwargs):
         self.__APIList = []
         self.__projectPath = kwargs['projectPath']
+        self.__configId = kwargs['config']
 
         if(kwargs['type'] == 'singleAPI'):
             try:
@@ -278,7 +281,10 @@ class RunAPI(object):
             relationList = kwargs['relation']
             self.__project = kwargs['project']
             try:
-                APIList = models.API.objects.filter(relation__in=relationList,project=self.__project,isdeleted=0)
+                tree = models.Relation.objects.get(project__id=self.__project, type=1)
+                body = eval(tree.tree)
+                nodeList = getNodeIdList(relationList, body) if len(relationList) != '' else []
+                APIList = models.API.objects.filter(relation__in=nodeList,project=self.__project,isdeleted=0)
             except ObjectDoesNotExist:
                 self.msg = 'ObjectDoesNotExist'
             for each in APIList:
@@ -322,14 +328,45 @@ class RunAPI(object):
         for each in queryset:
             self.__mapping[each.key] = each.value
 
+
+    def serializeTestCase(self):
+        try:
+            if(self.__configId != ''):
+                queryset = models.Config.objects.get(id=self.__configId,project_id=self.__project)
+                self.config = eval(queryset.body)
+        except ObjectDoesNotExist:
+            self.msg="config is not exist"
+
+        if (len(self.__APIList) == 0):
+            return
+        self.testCase=[]
+        if(hasattr(self,'config')):
+            self.testCase.append({'config':self.config})
+        testTemplate = {
+            'api':'',
+            'name':''
+        }
+        for each in self.__APIList:
+            eachTest = copy.deepcopy(testTemplate)
+            eachTest['name'] = each[0]
+            eachTest['api'] = 'api' + '/' + each[0] + '.yml'
+            self.testCase.append({'test':eachTest})
+        self.casePath = os.path.join(self.__projectPath, 'testcases')
+        if (os.path.exists(os.path.join(self.casePath, 'apitreetest' + '.yml'))):
+            return
+        file = codecs.open(os.path.join(self.casePath, 'apitreetest' + '.yml'), 'a+', 'utf-8')
+        file.write(yaml.dump(self.testCase, default_flow_style=False))
+        file.flush()
+
+
     def runAPI(self):
         runner = HttpRunner(failfast=False)
-        runner.run(self.apiPath,mapping=self.__mapping)
+        runner.run(self.casePath,mapping=self.__mapping)
         self.summary = parse_summary(runner.summary)
 
     def runBackAPI(self, name):
         runner = HttpRunner(failfast=False)
-        runner.run(self.apiPath, mapping=self.__mapping)
+        runner.run(self.casePath, mapping=self.__mapping)
         save_summary(name, runner.summary, self.__project)
 
 
