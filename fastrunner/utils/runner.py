@@ -64,6 +64,7 @@ class RunTestSuite(object):
         self.__project = kwargs['project']
         self.__relation = kwargs['relation']
         self.__projectPath = kwargs['projectPath']
+        self.__configId = kwargs['config']
         self.__getAPIList__()
         self.__getAllAPIBody__()
 
@@ -133,6 +134,13 @@ class RunTestSuite(object):
             return tmp
 
     def serializeSingleStep(self,index):
+        try:
+            if(self.__configId != ''):
+                queryset = models.Config.objects.get(id=self.__configId,project_id=self.__project)
+                self.config = eval(queryset.body)
+        except ObjectDoesNotExist:
+            self.msg="config is not exist"
+
         for suite in self.suiteQuerySet:
             self.allSuiteStep = []
             testStepstructure = {
@@ -145,6 +153,8 @@ class RunTestSuite(object):
                 }
             }
             self.SuiteBody = []
+            if(hasattr(self,'config')):
+                self.SuiteBody.append({'config':self.config})
             self.suitePath = os.path.join(self.__projectPath, 'testcases')
             srcindex = 1
             for each in eval(suite.body)['tests']:
@@ -183,6 +193,13 @@ class RunTestSuite(object):
             file.flush()
 
     def serializeTestSuite(self):
+        try:
+            if(self.__configId != ''):
+                queryset = models.Config.objects.get(id=self.__configId,project_id=self.__project)
+                self.config = eval(queryset.body)
+        except ObjectDoesNotExist:
+            self.msg="config is not exist"
+
         for eachSuite in self.suiteQuerySet:
             self.allSuiteStep = []
             testStepstructure = {
@@ -195,6 +212,8 @@ class RunTestSuite(object):
                 }
             }
             self.SuiteBody = []
+            if(hasattr(self,'config')):
+                self.SuiteBody.append({'config':self.config})
             self.suitePath = os.path.join(self.__projectPath, 'testcases')
             for each in eval(eachSuite.body)['tests']:
                 tmp = copy.deepcopy(testStepstructure)
@@ -522,7 +541,8 @@ class RunTestCase(object):
                 traceback.print_exc()
             file.flush()
 
-    def convertListToDict(self,dictInList,type):
+    @staticmethod
+    def convertListToDict(dictInList,type):
         if(type == 'variables'):
             if(len(dictInList) == 0):
                 return ''
@@ -532,7 +552,8 @@ class RunTestCase(object):
                     tmp[key] = value
             return tmp
 
-    def convertListToList(self,dict,type):
+    @staticmethod
+    def convertListToList(dict,type):
         if(type == 'extract'):
             if(len(dict) == 0):
                 return ''
@@ -700,3 +721,114 @@ class RunTestCase(object):
             file = codecs.open(os.path.join(self.casePath, step.name + '.yml'), 'a+', 'utf-8')
             file.write(yaml.dump(self.CaseBody, default_flow_style=False))
             file.flush()
+
+
+class singleStep(object):
+
+    def __init__(self,**kwargs):
+        self.stepBody = {}
+        self.stepBody['extract'] = kwargs['body']['extract']['extract']
+        self.stepBody['headers'] = kwargs['body']['header']['header']
+        self.stepBody['name'] = kwargs['body']['name']
+        self.stepBody['validate'] = kwargs['body']['validate']['validate']
+        self.stepBody['variables'] = kwargs['body']['variables']['variables']
+        self.__projectPath = kwargs['projectPath']
+        self.__project = kwargs['body']['project']
+        self.__configId = kwargs['body']['config']
+        try:
+            self.srcAPI = eval(models.API.objects.get(id=kwargs['body']['apiId']).body)
+        except ObjectDoesNotExist:
+            self.msg = 'ObjectDoesNotExist'
+
+    def serializeAPI(self):
+        self.apiPath = os.path.join(self.__projectPath, 'api')
+        srcAPI = {
+            'name': self.srcAPI['name'],
+            'variables': RunTestCase.convertListToDict(self.srcAPI.get('variables', []), 'variables'),
+            'request': {
+                'url': self.srcAPI.get('request', {}).get('url', ''),
+                'method': self.srcAPI.get('request', {}).get('method', ''),
+                'headers': self.srcAPI.get('request', {}).get('header', ''),
+                'params': self.srcAPI.get('request', {}).get('params', ''),
+                'data': self.srcAPI.get('request', {}).get('data', ''),
+                'json': self.srcAPI.get('request', {}).get('json', '')
+            },
+            'extract': self.srcAPI.get('extract', []),
+            'validate': self.srcAPI.get('validate', [])
+        }
+        file = codecs.open(os.path.join(self.apiPath, self.srcAPI['name'] + '.yml'), 'a+', 'utf-8')
+        file.write(yaml.dump(srcAPI, default_flow_style=False))
+        file.flush()
+
+    def serializeDebugtalk(self):
+        try:
+            queryset = models.Debugtalk.objects.get(project__id=self.__project)
+        except ObjectDoesNotExist:
+            return
+
+        self.debugtalk = queryset.code
+
+        file = codecs.open(os.path.join(self.__projectPath, 'debugtalk.py'), 'a+', 'utf-8')
+        file.write(self.debugtalk)
+        file.flush()
+
+    def generateMapping(self):
+        try:
+            queryset = models.Variables.objects.filter(project_id=self.__project)
+        except ObjectDoesNotExist:
+            self.__mapping = None
+            return
+
+        self.__mapping = {}
+        for each in queryset:
+            self.__mapping[each.key] = each.value
+
+    def serializeTestCase(self):
+        try:
+            if (self.__configId != ''):
+                queryset = models.Config.objects.get(id=self.__configId, project_id=self.__project)
+                self.config = eval(queryset.body)
+        except ObjectDoesNotExist:
+            self.msg = "config is not exist"
+
+        self.testCase = []
+        if (hasattr(self, 'config')):
+            self.testCase.append({'config': self.config})
+        test = {
+            'test': {
+                'name': '',
+                'request':{},
+                'variables': '',
+                'validate': '',
+                'extract': ''
+            }
+        }
+        self.casePath = os.path.join(self.__projectPath, 'testcases')
+        test['test']['name'] = self.stepBody['name']
+        test['test']['api'] = 'api/' + self.srcAPI['name'] + '.yml'
+        test['test']['request']['headers'] = self.stepBody['headers']
+
+        test['test']['validate'] = self.stepBody.get('validate', [])
+
+        test['test']['variables'] = '' if len(self.stepBody.get('variables', [])) == 0 else RunTestCase.convertListToDict(
+            self.stepBody.get('variables', []), 'variables')
+        test['test']['extract'] = self.stepBody.get('extract', [])
+
+        if(len(test['test']['request']) == 0 or self.srcAPI.get('request', {}).get('headers', '') == ''):
+            del test['test']['request']
+        if (len(test['test']['validate']) == 0):
+            del test['test']['validate']
+        if (len(test['test']['variables']) == 0):
+            del test['test']['variables']
+        if (len(test['test']['extract']) == 0):
+            del test['test']['extract']
+
+        file = codecs.open(os.path.join(self.casePath, self.stepBody['name'] + '.yml'), 'a+', 'utf-8')
+        self.testCase.append(test)
+        file.write(yaml.dump(self.testCase, default_flow_style=False))
+        file.flush()
+
+    def runAPI(self):
+        runner = HttpRunner(failfast=False)
+        runner.run(self.casePath, mapping=self.__mapping)
+        self.summary = parse_summary(runner.summary)

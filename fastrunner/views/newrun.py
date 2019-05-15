@@ -183,7 +183,7 @@ def run_suitestep(request):
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
 
-    allAPI = runner.RunTestSuite(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath)
+    allAPI = runner.RunTestSuite(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath,config=request.data['config'])
     allAPI.serializeAPI()
     allAPI.serializeTestSuite()
     allAPI.serializeDebugtalk()
@@ -213,7 +213,7 @@ def run_suitesinglestep(request):
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
 
-    allAPI = runner.RunTestSuite(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath)
+    allAPI = runner.RunTestSuite(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath,config=request.data['config'])
     allAPI.serializeAPI()
     allAPI.serializeSingleStep(request.data['index'])
     allAPI.serializeDebugtalk()
@@ -331,3 +331,43 @@ def run_casesinglestep(request):
     allAPI.runSingleStep()
 
     return Response(allAPI.summary)
+
+
+@api_view(['POST'])
+def run_DebugSuiteStep(request):
+    """ run suitestep by body
+    """
+    run_test_path = settings.RUN_TEST_PATH
+    timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
+    projectPath = os.path.join(run_test_path, timedir)
+    create_scaffold(projectPath)
+
+    debugApi = runner.singleStep(body=request.data,projectPath=projectPath)
+    debugApi.serializeAPI()
+    debugApi.serializeDebugtalk()
+    debugApi.generateMapping()
+    debugApi.serializeTestCase()
+    debugApi.runAPI()
+    return Response(debugApi.summary)
+
+
+# def run_api(request):
+#     """ run api by body
+#     """
+#     api = Format(request.data)
+#     api.parse()
+#     run_test_path = settings.RUN_TEST_PATH
+#     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
+#     projectPath = os.path.join(run_test_path, timedir)
+#     create_scaffold(projectPath)
+#     try:
+#         singleAPI = runner.RunAPI(type="debugAPI",name=api.name,project=api.project,projectPath=projectPath,APIBody=api.testcase,config=request.data['config'])
+#     except:
+#         traceback.print_exc()
+#
+#     singleAPI.serializeAPI()
+#     singleAPI.serializeDebugtalk()
+#     singleAPI.generateMapping()
+#     singleAPI.serializeTestCase()
+#     singleAPI.runAPI()
+#     return Response(singleAPI.summary)

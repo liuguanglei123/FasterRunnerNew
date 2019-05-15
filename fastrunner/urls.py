@@ -15,7 +15,7 @@ Including another URLconf
 """
 
 from django.urls import path
-from fastrunner.views import project, api, config, database, run, suite, report,testsuite, newrun, testcase
+from fastrunner.views import project, api, config, schedule, database, run, suite, report,testsuite, newrun, testcase
 
 urlpatterns = [
     # 项目相关接口地址
@@ -28,13 +28,14 @@ urlpatterns = [
     path('project/<int:pk>/', project.ProjectView.as_view({"get": "single"})),
 
     # 数据库相关接口地址
-    path('database/', database.DataBaseView.as_view({
+    # 定时任务相关接口
+    path('schedule/', schedule.ScheduleView.as_view({
         "get": "list",
-        "post": "create",
+        "post": "add",
     })),
-    path('database/<int:pk>/', database.DataBaseView.as_view({
-        'patch': 'partial_update',
-        'delete': 'destroy'
+
+    path('schedule/<int:pk>/', schedule.ScheduleView.as_view({
+        "delete": "delete"
     })),
 
     # debugtalk.py相关接口地址
@@ -159,5 +160,16 @@ urlpatterns = [
 
     path('run_casestep/', newrun.run_casestep),
     path('run_casesinglestep/', newrun.run_casesinglestep),
+    path('run_DebugSuiteStep/', newrun.run_DebugSuiteStep),
 
+    path('host_ip/', config.HostIPView.as_view({
+        "post": "add",
+        "get": "list"
+    })),
+
+    path('host_ip/<int:pk>/', config.HostIPView.as_view({
+        "delete": "delete",
+        "patch": "update",
+        "get": "all"
+    })),
 ]

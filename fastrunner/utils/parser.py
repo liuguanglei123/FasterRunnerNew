@@ -1,8 +1,33 @@
 import json
 from enum import Enum
 from fastrunner.models import FileBinary
-import copy
+import copy,os, codecs,yaml
 from fastrunner import models
+from django.core.exceptions import ObjectDoesNotExist
+
+
+
+
+def convertListToDict(dictInList, type):
+    if (type == 'variables'):
+        if (len(dictInList) == 0):
+            return ''
+        tmp = {}
+        for each in dictInList:
+            for key, value in each.items():
+                tmp[key] = value
+        return tmp
+
+    def convertListToList(dict,type):
+        if(type == 'extract'):
+            if(len(dict) == 0):
+                return ''
+            tmp = []
+            for each in dict:
+                for key,value in each.items():
+                    tmp.append( { key:value } )
+            return tmp
+
 
 class FileType(Enum):
     """
@@ -206,7 +231,7 @@ class Parse(object):
         key = str(type(content).__name__)
 
         if key in ["list", "dict"]:
-            content = json.dumps(content)
+            content = json.dumps(content, ensure_ascii=False)
         else:
             content = str(content)
         return var_type[key], content
@@ -372,6 +397,12 @@ class Parse(object):
                     })
 
         self.testcase = test
+
+def format_json(value):
+    try:
+        return json.dumps(value, indent=4, separators=(',', ': '), ensure_ascii=False)
+    except:
+        return value
 
 def getApiFromSuite(queryset):
     apilist = []
@@ -750,7 +781,8 @@ class TestSuiteFormat(object):
         }
         self.testcase = {
             'suiteStep':suiteStep,
-            'apiStep':apiStep
+            'apiStep':apiStep,
+            'apiId':self.specAPIid
         }
         self.testcase['name'] = self.singleAPIBody['srcAPI']['name']
         self.testcase['method'] = self.singleAPIBody['srcAPI']['method']

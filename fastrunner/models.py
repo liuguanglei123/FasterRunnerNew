@@ -117,6 +117,18 @@ class CaseStep(BaseTable):
     case = models.ForeignKey(Case, on_delete=models.CASCADE)
     step = models.IntegerField("顺序", null=False)
 
+class HostIP(BaseTable):
+    """
+    全局变量
+    """
+
+    class Meta:
+        verbose_name = "HOST配置"
+        db_table = "HostIP"
+
+    name = models.CharField(null=False, max_length=100)
+    value = models.TextField(null=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
 
 class DataBase(BaseTable):
     """

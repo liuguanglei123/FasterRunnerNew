@@ -18,7 +18,6 @@ from httprunner import logger
 from httprunner.api import HttpRunner
 from requests.cookies import RequestsCookieJar
 from requests_toolbelt import MultipartEncoder
-
 from fastrunner import models
 from fastrunner.utils.parser import Format
 import traceback

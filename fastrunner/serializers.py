@@ -3,6 +3,8 @@ import json
 from rest_framework import serializers
 from fastrunner import models
 from fastrunner.utils.parser import Parse
+from djcelery import models as celery_models
+
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -161,6 +163,33 @@ class VariablesSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Variables
         fields = '__all__'
+
+class HostIPSerializer(serializers.ModelSerializer):
+    """
+    变量信息序列化
+    """
+
+    class Meta:
+        model = models.HostIP
+        fields = '__all__'
+
+
+class PeriodicTaskSerializer(serializers.ModelSerializer):
+    """
+    定时任务信列表序列化
+    """
+    kwargs = serializers.SerializerMethodField()
+    args = serializers.SerializerMethodField()
+
+    class Meta:
+        model = celery_models.PeriodicTask
+        fields = ['id', 'name', 'args', 'kwargs', 'enabled', 'date_changed', 'enabled', 'description']
+
+    def get_kwargs(self, obj):
+        return json.loads(obj.kwargs)
+
+    def get_args(self, obj):
+        return json.loads(obj.args)
 
 
 class SuiteSerializer(serializers.ModelSerializer):

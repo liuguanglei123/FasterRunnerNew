@@ -1,5 +1,7 @@
 from fastrunner import models
 from fastrunner.utils.parser import Format
+from djcelery import models as celery_models
+
 
 
 def get_counter(model, pk=None):
@@ -23,6 +25,8 @@ def get_project_detail(pk):
     config_count = get_counter(models.Config, pk=pk)
     variables_count = get_counter(models.Variables, pk=pk)
     report_count = get_counter(models.Report, pk=pk)
+    host_count = get_counter(models.HostIP, pk=pk)
+    task_count = celery_models.PeriodicTask.objects.filter(description=pk).count()
 
     return {
         "api_count": api_count,
@@ -31,7 +35,8 @@ def get_project_detail(pk):
         "team_count": team_count,
         "config_count": config_count,
         "variables_count": variables_count,
-        "report_count": report_count
+        "report_count": report_count,
+        "task_count": task_count,
     }
 
 
@@ -53,7 +58,6 @@ def project_init(project):
     # 自动生成Testsuite
     models.Relation.objects.create(project=project, type=3, tree=tree)
 
-
 def project_end(project):
     """
     删除项目相关表 filter不会报异常 最好不用get
@@ -65,6 +69,7 @@ def project_end(project):
     models.Relation.objects.filter(project=project).delete()
     models.Report.objects.filter(project=project).delete()
     models.Variables.objects.filter(project=project).delete()
+    celery_models.PeriodicTask.objects.filter(description=project).delete()
 
     case = models.Case.objects.filter(project=project).values_list('id')
 
