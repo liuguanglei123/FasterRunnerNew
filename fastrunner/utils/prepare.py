@@ -37,6 +37,7 @@ def get_project_detail(pk):
         "variables_count": variables_count,
         "report_count": report_count,
         "task_count": task_count,
+        "host_count": host_count,
     }
 
 

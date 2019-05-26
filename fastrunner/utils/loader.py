@@ -389,6 +389,7 @@ def parse_summary(summary):
 
     return summary
 
+
 '''def parse_summary(summary):
     """序列化summary
     """

@@ -258,6 +258,11 @@ LOGGING = {
             'handlers': ['scprits_handler', 'console'],
             'level': 'INFO',
             'propagate': True
+        },
+        'httprunner': {
+            'handlers': ['scprits_handler', 'console'],
+            'level': 'DEBUG',
+            'propagate': True
         }
     }
 }

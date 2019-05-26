@@ -183,11 +183,12 @@ class TreeView(APIView):
             })
 
         body = eval(tree.tree) # list
+        max_id = tree.max_id if ( get_tree_max_id(body) <= tree.max_id ) else get_tree_max_id(body)
         tree = {
             "tree": body,
             "id": tree.id,
             "success": True,
-            "max": get_tree_max_id(body)
+            "max": max_id
         }
         return Response(tree)
 
@@ -201,6 +202,7 @@ class TreeView(APIView):
 
             relation = models.Relation.objects.get(id=kwargs['pk'])
             relation.tree = body
+            relation.max_id = get_tree_max_id(body) if(get_tree_max_id(body) >= relation.max_id) else relation.max_id
             relation.save()
 
         except KeyError:
@@ -210,6 +212,7 @@ class TreeView(APIView):
             return Response(response.SYSTEM_ERROR)
 
         #  mode -> True remove node
+        #如果是删除节点，会更新该节点下所有的接口数据为删除状态
         if mode:
             prepare.tree_end(request.data, relation.project)
 

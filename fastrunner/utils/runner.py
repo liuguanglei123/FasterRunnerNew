@@ -18,6 +18,11 @@ from fastrunner.utils.loader import save_summary
 from fastrunner.utils.tree import getNodeIdList
 
 EXEC = sys.executable
+#TODO：所有的runcase的地方，都需要增加try catch，并且前台输出后台运行的相关报错
+'''为什么要做日志输入打印内容？
+httprunner升级到2.0之后，有专门的的parse函数，先去整体解析所有的api，如果出现某个变量未定义，还未真正执行case的时候，就报错退出了。
+httprunner的1.5版本不存在该问题
+'''
 
 if 'uwsgi' in EXEC:
     EXEC = "/usr/bin/python3"
@@ -320,7 +325,7 @@ class RunAPI(object):
         self.apiPath = os.path.join(self.__projectPath,'api')
         for each in self.__APIList:
             file = codecs.open(os.path.join(self.apiPath,each[0]+'.yml'),'a+','utf-8')
-            file.write(yaml.dump(each[1],default_flow_style=False))
+            file.write(yaml.dump(each[1],allow_unicode=True,default_flow_style=False))
             file.flush()
             file.close()
 
@@ -374,7 +379,7 @@ class RunAPI(object):
         if (os.path.exists(os.path.join(self.casePath, 'apitreetest' + '.yml'))):
             return
         file = codecs.open(os.path.join(self.casePath, 'apitreetest' + '.yml'), 'a+', 'utf-8')
-        file.write(yaml.dump(self.testCase, default_flow_style=False))
+        file.write(yaml.dump(self.testCase,allow_unicode=True, default_flow_style=False))
         file.flush()
 
 
@@ -400,6 +405,7 @@ class RunTestCase(object):
         self.__project = kwargs['project']
         self.__relation = kwargs['relation']
         self.__projectPath = kwargs['projectPath']
+        self.__configId = kwargs['config']
         self.__getAPIListFromCase__()
         self.__getAllAPIBody__()
         self.__getAllSuiteBody__()
@@ -566,7 +572,18 @@ class RunTestCase(object):
     def serializeTestCase(self):
         self.needRunCase = []
         for eachCase in self.caseQuerySet:
-            self.allCaseStep = []
+            try:
+                if (self.__configId != ''):
+                    queryset = models.Config.objects.get(id=self.__configId, project_id=self.__project)
+                    self.config = eval(queryset.body)
+            except ObjectDoesNotExist:
+                self.msg = "config is not exist"
+
+            self.CaseBody = []
+
+            if (hasattr(self, 'config')):
+                self.CaseBody.append({'config': self.config})
+
             testStepstructure = {
                 'test': {
                     'name': '',
@@ -575,7 +592,6 @@ class RunTestCase(object):
                     'extract': ''
                 }
             }
-            self.CaseBody = []
             self.casePath = os.path.join(self.__projectPath, 'testcases')
             for each in eval(eachCase.body)['tests']:
                 tmp = copy.deepcopy(testStepstructure)
@@ -674,7 +690,17 @@ class RunTestCase(object):
 
     def serializeSingleStep(self,index):
         for step in self.caseQuerySet:
-            self.allCaseStep = []
+            try:
+                if (self.__configId != ''):
+                    queryset = models.Config.objects.get(id=self.__configId, project_id=self.__project)
+                    self.config = eval(queryset.body)
+            except ObjectDoesNotExist:
+                self.msg = "config is not exist"
+
+            self.CaseBody = []
+
+            if (hasattr(self, 'config')):
+                self.CaseBody.append({'config': self.config})
             testStepstructure = {
                 'test': {
                     'name': '',
@@ -684,7 +710,7 @@ class RunTestCase(object):
                     'extract': ''
                 }
             }
-            self.CaseBody = []
+
             self.casePath = os.path.join(self.__projectPath, 'testcases')
             srcindex = 1
             for each in eval(step.body)['tests']:
@@ -728,7 +754,7 @@ class singleStep(object):
     def __init__(self,**kwargs):
         self.stepBody = {}
         self.stepBody['extract'] = kwargs['body']['extract']['extract']
-        self.stepBody['headers'] = kwargs['body']['header']['header']
+        self.stepBody['headers'] = kwargs['body']['headers']['headers']
         self.stepBody['name'] = kwargs['body']['name']
         self.stepBody['validate'] = kwargs['body']['validate']['validate']
         self.stepBody['variables'] = kwargs['body']['variables']['variables']
@@ -748,7 +774,7 @@ class singleStep(object):
             'request': {
                 'url': self.srcAPI.get('request', {}).get('url', ''),
                 'method': self.srcAPI.get('request', {}).get('method', ''),
-                'headers': self.srcAPI.get('request', {}).get('header', ''),
+                'headers': self.srcAPI.get('request', {}).get('headers', ''),
                 'params': self.srcAPI.get('request', {}).get('params', ''),
                 'data': self.srcAPI.get('request', {}).get('data', ''),
                 'json': self.srcAPI.get('request', {}).get('json', '')

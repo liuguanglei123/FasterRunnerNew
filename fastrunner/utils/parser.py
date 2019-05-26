@@ -50,7 +50,7 @@ class Format(object):
     def __init__(self, body, level='test'):
         """
         body => {
-                    header: header -> [{key:'', value:'', desc:''},],
+                    headers: headers -> [{key:'', value:'', desc:''},],
                     request: request -> {
                         form: formData - > [{key: '', value: '', type: 1, desc: ''},],
                         json: jsonData -> {},-
@@ -70,7 +70,7 @@ class Format(object):
         try:
             self.name = body.pop('name')
 
-            self.__headers = body['header'].pop('header')
+            self.__headers = body['headers'].pop('headers')
             self.__params = body['request']['params'].pop('params')
             self.__data = body['request']['form'].pop('data')
             self.__json = body['request'].pop('json')
@@ -80,7 +80,7 @@ class Format(object):
             self.__teardown_hooks = body['hooks'].pop('teardown_hooks')
 
             self.__desc = {
-                "header": body['header'].pop('desc'),
+                "headers": body['headers'].pop('desc'),
                 "data": body['request']['form'].pop('desc'),
                 "files": body['request']['files'].pop('desc'),
                 "params": body['request']['params'].pop('desc'),
@@ -256,7 +256,7 @@ class Parse(object):
         #  初始化test结构
         test = {
             "name": self.name,
-            "header": init,
+            "headers": init,
             "request": {
                 "data": init_p,
                 "params": init_p,
@@ -318,12 +318,12 @@ class Parse(object):
                         })
 
         if self.__request.get('headers'):
-            test["header"] = []
+            test["headers"] = []
             for key, value in self.__request.pop('headers').items():
-                test['header'].append({
+                test['headers'].append({
                     "key": key,
                     "value": value,
-                    "desc": self.__desc["header"][key]
+                    "desc": self.__desc["headers"][key]
                 })
 
         if self.__request.get('data'):
@@ -756,7 +756,7 @@ class TestSuiteFormat(object):
     #将headers params data等转换成列表，方便前台进行展示
     def parse_http(self):
         suiteStep = {
-            'header': [],
+            'headers': [],
             'request':{
                 'data': [],
                 'params': [],
@@ -768,7 +768,7 @@ class TestSuiteFormat(object):
             'extract': [],
         }
         apiStep = {
-            'header': [],
+            'headers': [],
             'request': {
                 'data': [],
                 'params': [],
@@ -791,14 +791,14 @@ class TestSuiteFormat(object):
 
         if self.singleAPIBody['srcAPI'].get('headers'):
             for key, value in self.singleAPIBody['srcAPI'].pop('headers').items():
-                apiStep['header'].append({
+                apiStep['headers'].append({
                     "key": key,
                     "value": value,
                 })
 
         if self.singleAPIBody['body'].get('headers'):
             for key, value in self.singleAPIBody['body'].pop('headers').items():
-                suiteStep['header'].append({
+                suiteStep['headers'].append({
                     "key": key,
                     "value": value,
                 })
@@ -914,7 +914,7 @@ class TestSuiteFormat(object):
     def updateStep(self,SuiteStepBody):
         for each in self.body.get('tests',[]):
             if(each['srcindex'] == SuiteStepBody['srcindex']):
-                each['headers'] = SuiteStepBody['header'].get('header',{})
+                each['headers'] = SuiteStepBody['headers'].get('headers',{})
                 each['extract'] = SuiteStepBody['extract'].get('extract',{})
                 each['validate'] = SuiteStepBody['validate'].get('validate',{})
                 each['variables'] = SuiteStepBody['variables'].get('variables',{})
@@ -1119,7 +1119,7 @@ class testCaseFormat(object):
 
     def parse_http(self):
         suiteStep = {
-            'header': [],
+            'headers': [],
             'request': {
                 'data': [],
                 'params': [],
@@ -1131,7 +1131,7 @@ class testCaseFormat(object):
             'extract': [],
         }
         apiStep = {
-            'header': [],
+            'headers': [],
             'request': {
                 'data': [],
                 'params': [],
@@ -1153,14 +1153,14 @@ class testCaseFormat(object):
 
         if self.singleAPIBody['srcAPI'].get('headers'):
             for key, value in self.singleAPIBody['srcAPI'].pop('headers').items():
-                apiStep['header'].append({
+                apiStep['headers'].append({
                     "key": key,
                     "value": value,
                 })
 
         if self.singleAPIBody['body'].get('headers'):
             for key, value in self.singleAPIBody['body'].pop('headers').items():
-                suiteStep['header'].append({
+                suiteStep['headers'].append({
                     "key": key,
                     "value": value,
                 })

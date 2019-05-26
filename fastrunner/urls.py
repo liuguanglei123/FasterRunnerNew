@@ -161,6 +161,7 @@ urlpatterns = [
     path('run_casestep/', newrun.run_casestep),
     path('run_casesinglestep/', newrun.run_casesinglestep),
     path('run_DebugSuiteStep/', newrun.run_DebugSuiteStep),
+    path('run_DebugCaseStep/', newrun.run_DebugCaseStep),
 
     path('host_ip/', config.HostIPView.as_view({
         "post": "add",

@@ -8,43 +8,51 @@ import os,time
 from httprunner.utils import create_scaffold
 from fastrunner.utils import runner
 import traceback
+from fastrunner.utils.newrunner import RunSingleApi
 
 """运行方式
 """
 import logging
-logger = logging.getLogger('django')
+logger = logging.getLogger('httprunner')
 
 
-@api_view(['POST'])
-def run_api(request):
-    """ run api by body
-    """
-    api = Format(request.data)
-    api.parse()
-
-    summary = loader.debug_api(api.testcase, api.project)
-
-    return Response(summary)
+# @api_view(['POST'])
+# def run_api(request):
+#     """ run api by body
+#     """
+#     api = Format(request.data)
+#     api.parse()
+#
+#     summary = loader.debug_api(api.testcase, api.project)
+#
+#     return Response(summary)
 
 
 @api_view(['GET'])
 def run_api_pk(request, **kwargs):
     """run api by pk
     """
-    logger.debug("run api start")
     run_test_path = settings.RUN_TEST_PATH
     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
 
+    singleApi = RunSingleApi(projectPath=projectPath, config=request.data['config'],
+                            apiId=kwargs['pk'], type="singleapi")
+    singleApi.serializeApi()
+    singleApi.serializeDebugtalk()
+    singleApi.generateMapping()
+    singleApi.serializeTestCase()
+    singleApi.run()
+    return Response(singleApi.summary)
 
-    singleAPI = runner.RunAPI(type="singleAPI",id=kwargs['pk'],projectPath=projectPath,config=request.query_params['config'])
-    singleAPI.serializeAPI()
-    singleAPI.serializeDebugtalk()
-    singleAPI.generateMapping()
-    singleAPI.serializeTestCase()#增加了config配置以后，就需要在testcases或者testsuites目录中执行api接口的测试，否则无法引入config，这里选择的是testcases级别
-    singleAPI.runAPI()
-    return Response(singleAPI.summary)
+    # singleAPI = runner.RunAPI(type="singleAPI",id=kwargs['pk'],projectPath=projectPath,config=request.query_params['config'])
+    # singleAPI.serializeAPI()
+    # singleAPI.serializeDebugtalk()
+    # singleAPI.generateMapping()
+    # singleAPI.serializeTestCase()#增加了config配置以后，就需要在testcases或者testsuites目录中执行api接口的测试，否则无法引入config，这里选择的是testcases级别
+    # singleAPI.runAPI()
+    # return Response(singleAPI.summary)
 
 
 @api_view(["POST"])
@@ -259,21 +267,20 @@ def run_api(request):
     """
     api = Format(request.data)
     api.parse()
+
     run_test_path = settings.RUN_TEST_PATH
     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
-    try:
-        singleAPI = runner.RunAPI(type="debugAPI",name=api.name,project=api.project,projectPath=projectPath,APIBody=api.testcase,config=request.data['config'])
-    except:
-        traceback.print_exc()
+    debugApi = RunSingleApi(project=api.project,projectPath=projectPath,config=request.data['config'],
+                apiBody=api.testcase,type="debugapi")
 
-    singleAPI.serializeAPI()
-    singleAPI.serializeDebugtalk()
-    singleAPI.generateMapping()
-    singleAPI.serializeTestCase()
-    singleAPI.runAPI()
-    return Response(singleAPI.summary)
+    debugApi.serializeApi()
+    debugApi.serializeDebugtalk()
+    debugApi.generateMapping()
+    debugApi.serializeTestCase()
+    debugApi.run()
+    return Response(debugApi.summary)
 
 
 @api_view(['POST'])
@@ -292,7 +299,7 @@ def run_casestep(request):
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
 
-    allAPI = runner.RunTestCase(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath)
+    allAPI = runner.RunTestCase(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath,config=request.data['config'])
     allAPI.serializeAPI()
     allAPI.serializeSuite()
     allAPI.serializeTestCase()
@@ -323,7 +330,7 @@ def run_casesinglestep(request):
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
 
-    allAPI = runner.RunTestCase(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath)
+    allAPI = runner.RunTestCase(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath,config=request.data['config'])
     allAPI.serializeAPI()
     allAPI.serializeSingleStep(request.data['index'])
     allAPI.serializeDebugtalk()
@@ -335,6 +342,23 @@ def run_casesinglestep(request):
 
 @api_view(['POST'])
 def run_DebugSuiteStep(request):
+    """ run suitestep by body
+    """
+    run_test_path = settings.RUN_TEST_PATH
+    timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
+    projectPath = os.path.join(run_test_path, timedir)
+    create_scaffold(projectPath)
+
+    debugApi = runner.singleStep(body=request.data,projectPath=projectPath)
+    debugApi.serializeAPI()
+    debugApi.serializeDebugtalk()
+    debugApi.generateMapping()
+    debugApi.serializeTestCase()
+    debugApi.runAPI()
+    return Response(debugApi.summary)
+
+@api_view(['POST'])
+def run_DebugCaseStep(request):
     """ run suitestep by body
     """
     run_test_path = settings.RUN_TEST_PATH

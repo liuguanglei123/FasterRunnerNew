@@ -215,6 +215,7 @@ class Relation(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     tree = models.TextField("结构主题", null=False, default=[])
     type = models.IntegerField("树类型", default=1)
+    max_id = models.IntegerField("最大ID",default=0)
 
 
 class TestSuite(BaseTable):
