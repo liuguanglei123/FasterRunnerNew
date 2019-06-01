@@ -77,7 +77,7 @@ class API(BaseTable):
         verbose_name = "接口信息"
         db_table = "API"
 
-    name = models.CharField("接口名称", null=False, max_length=100)
+    name = models.CharField("接口名称", unique=True,null=False, max_length=100)
     body = models.TextField("主体信息", null=False)
     url = models.CharField("请求地址", null=False, max_length=200)
     method = models.CharField("请求方式", null=False, max_length=10)
@@ -95,7 +95,7 @@ class Case(BaseTable):
         verbose_name = "用例信息"
         db_table = "Case"
 
-    name = models.CharField("用例名称", null=False, max_length=100)
+    name = models.CharField("用例名称", unique=True,null=False, max_length=100)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     relation = models.IntegerField("节点id", null=False)
     length = models.IntegerField("teststep个数", null=False)
@@ -226,7 +226,7 @@ class TestSuite(BaseTable):
         verbose_name = "步骤集信息"
         db_table = "Suite"
 
-    name = models.CharField("步骤集名称", null=False, max_length=100)
+    name = models.CharField("步骤集名称", unique=True,null=False, max_length=100)
     body = models.TextField("主体信息", null=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     relation = models.IntegerField("节点id", null=False)
@@ -240,7 +240,7 @@ class TestCase(BaseTable):
         verbose_name = "测试案例"
         db_table = "TestCase"
 
-    name = models.CharField("测试案例名称", null=False, max_length=100)
+    name = models.CharField("测试案例名称", unique=True,null=False, max_length=100)
     body = models.TextField("主体信息", null=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     relation = models.IntegerField("节点id", null=False)

@@ -1150,6 +1150,8 @@ class testCaseFormat(object):
         self.testcase['method'] = self.singleAPIBody['srcAPI']['method']
         self.testcase['url'] = self.singleAPIBody['srcAPI']['url']
         self.testcase['srcindex'] = self.singleAPIBody['srcindex']
+        self.testcase['srcName'] = self.singleAPIBody['srcAPI']['name']
+        self.testcase['apiId'] = self.singleAPIBody['id']
 
         if self.singleAPIBody['srcAPI'].get('headers'):
             for key, value in self.singleAPIBody['srcAPI'].pop('headers').items():

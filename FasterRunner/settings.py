@@ -81,7 +81,7 @@ if DEBUG:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'FasterRunner',  # 新建数据库名
+            'NAME': 'FasterRunnerNew',  # 新建数据库名
             'USER': 'root',  # 数据库登录名
             'PASSWORD': 'Ngboss4,123',  # 数据库登录密码
             'HOST': '111.231.235.87',  # 数据库所在服务器ip地址
@@ -92,7 +92,7 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'FasterRunner',  # 新建数据库名
+            'NAME': 'FasterRunnerNew',  # 新建数据库名
             'USER': 'root',  # 数据库登录名
             'PASSWORD': 'Ngboss4,123',  # 数据库登录密码
             'HOST': '111.231.235.87',  # 数据库所在服务器ip地址
