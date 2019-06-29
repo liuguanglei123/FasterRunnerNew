@@ -134,9 +134,9 @@ class Run():
             {'logout':logoytBody},
             {'save':saveBody},
         """
-        self.ApiList = []
-        self.TestCaseList = []
-        self.TestSuiteList = []
+        self.ApiList = {}
+        self.TestCaseList = {}
+        self.TestSuiteList = {}
 
         self.getConfig()
 
@@ -255,7 +255,7 @@ class RunSingleApi(Run):
 
     def getApiBody(self,apibody = None,apiId=None):
         if(self._type == 'debugapi'):
-            self.ApiList.append({apibody['name']:{
+            self.ApiList[apibody['name']] = {
                 'name': apibody.get('name', ''),
                 'variables': self.convertListToDict(apibody.get('variables', []), 'variables'),
                 'request': {
@@ -269,7 +269,6 @@ class RunSingleApi(Run):
                 'extract': apibody.get('extract', []),
                 'validate': apibody['validate']
                 }
-            })
         elif(self._type == 'singleapi'):
             try:
                 querySet = models.API.objects.get(id=apiId,isdeleted=0)
@@ -280,7 +279,7 @@ class RunSingleApi(Run):
                 self.errorMsg = "查找到多条重复ID的API，请手动检查"
                 return
 
-            self.ApiList.append({querySet.name:eval(querySet.body)})
+            self.ApiList[querySet.name] = eval(querySet.body)
             self._projectId = querySet.project_id
 
     def serializeTestCase(self):
@@ -288,16 +287,15 @@ class RunSingleApi(Run):
             self.errormsg = "没有发现要执行的API，请检查逻辑是否存在问题"
             return
 
-        for apiName,apiBody in self.ApiList.pop().items():
-            self.TestCaseList.append({apiName:[{'test':apiBody}]})
+        for apiName,apiBody in self.ApiList.items():
+            self.TestCaseList[apiName] = [{'test':apiBody}]
         self.casePath = os.path.join(self._projectPath, 'testcases')
-        for case in self.TestCaseList:
-            for caseName,caseBody in case.items():
-                if (os.path.exists(os.path.join(self.casePath, caseName + '.yml'))):
-                    return
-                file = codecs.open(os.path.join(self.casePath, caseName + '.yml'), 'a+', 'utf-8')
-                file.write(yaml.dump(caseBody,allow_unicode=True, default_flow_style=False))
-                file.flush()
+        for caseName,caseBody in self.TestCaseList.items():
+            if (os.path.exists(os.path.join(self.casePath, caseName + '.yml'))):
+                return
+            file = codecs.open(os.path.join(self.casePath, caseName + '.yml'), 'a+', 'utf-8')
+            file.write(yaml.dump(caseBody,allow_unicode=True, default_flow_style=False))
+            file.flush()
 
     def serializeTestSuite(self):
         if (len(self.TestCaseList) == 0):
@@ -309,17 +307,21 @@ class RunSingleApi(Run):
             self.parameters = tmpTestSuiteList['config'].get('parameters',None)
 
         tmpTestSuiteList['testcases'] = {}
-        for caseName,caseBody in self.TestCaseList.pop().items():
+        for caseName,caseBody in self.TestCaseList.items():
             tmpTestSuiteList['testcases'].update({
                 caseName:{
                     'testcase':'testcases/'+ caseName+'.yml',
-                    'parameters': self.parameters
                 }})
+            if(hasattr(self,'parameters') and getattr(self,'parameters') != None ):
+                tmpTestSuiteList['testcases'][caseName].update(
+                    {
+                        'parameters': self.parameters
+                    }
+                )
         suiteName = list(tmpTestSuiteList['testcases'].keys())[0]
-        self.TestSuiteList.append({suiteName:tmpTestSuiteList})
+        self.TestSuiteList[suiteName] = tmpTestSuiteList
         self.suitePath = os.path.join(self._projectPath, 'testsuites')
-        for suite in self.TestSuiteList:
-            suiteBody = list(suite.values())[0]
+        for suiteName,suiteBody in self.TestSuiteList.items():
             if (os.path.exists(os.path.join(self.suitePath, suiteName + '.yml'))):
                 return
             file = codecs.open(os.path.join(self.suitePath, suiteName + '.yml'), 'a+', 'utf-8')
@@ -339,7 +341,6 @@ class RunTree(Run):
         self.getAllApi()
 
     def getAllApi(self):
-
         if(self._type == 'apiTree'):
             try:
                 tree = models.Relation.objects.get(project__id=self._projectId, type=1)
@@ -350,29 +351,61 @@ class RunTree(Run):
                 self.errormsg = '没有找到对应节点的用例，请手动检查'
 
             for each in APIList:
-                self.ApiList[each.name] = eval(each.body)
+                self.ApiList[each.name] = each.body
         elif(self._type == 'singleapi'):
             pass
 
     def serializeTestCase(self):
+
         if (len(self.ApiList) == 0):
             self.errormsg = "没有发现要执行的API，请检查逻辑是否存在问题"
             return
-        self.TestCaseList=[]
-        if(hasattr(self,'config')):
-            self.TestCaseList.append({'config':self.config})
+        tmpApiTreeList = []
         for apiName,apiBody in self.ApiList.items():
-            self.TestCaseList.append({'test':{'name':apiName,'api':'api'+'/'+apiName+'.yml'}})
+            tmpApiTreeList.append({'test':eval(apiBody)})
+        self.TestCaseList['apitreetest'] = tmpApiTreeList
         self.casePath = os.path.join(self._projectPath, 'testcases')
-        if (os.path.exists(os.path.join(self.casePath, 'apitreetest' + '.yml'))):
+        for caseName,caseBody in self.TestCaseList.items():
+            if (os.path.exists(os.path.join(self.casePath, caseName + '.yml'))):
+                return
+            file = codecs.open(os.path.join(self.casePath, caseName + '.yml'), 'a+', 'utf-8')
+            file.write(yaml.dump(caseBody,allow_unicode=True, default_flow_style=False))
+            file.flush()
+
+    def serializeTestSuite(self):
+        if (len(self.TestCaseList) == 0):
+            self.errormsg = "没有发现要执行的Case，请检查逻辑是否存在问题"
             return
-        file = codecs.open(os.path.join(self.casePath, 'debugapi' + '.yml'), 'a+', 'utf-8')
-        file.write(yaml.dump(self.TestCaseList,allow_unicode=True, default_flow_style=False))
-        file.flush()
+        tmpTestSuiteList ={}
+        if(hasattr(self,'config')):
+            self.parameters = self.config.pop('parameters') if('parameters' in self.config.keys()) else None
+            tmpTestSuiteList['config'] = self.config
+
+        tmpTestSuiteList['testcases'] = {}
+        for caseName, caseBody in self.TestCaseList.items():
+            tmpTestSuiteList['testcases'].update({
+                caseName: {
+                    'testcase': 'testcases/' + caseName + '.yml',
+                }})
+            if (hasattr(self, 'parameters') and getattr(self, 'parameters') != None):
+                tmpTestSuiteList['testcases'][caseName].update(
+                    {
+                        'parameters': self.parameters
+                    }
+                )
+            self.TestSuiteList[caseName] =  tmpTestSuiteList
+        self.suitePath = os.path.join(self._projectPath, 'testsuites')
+        for suiteName,suiteBody in self.TestSuiteList.items():
+            if (os.path.exists(os.path.join(self.suitePath, suiteName + '.yml'))):
+                return
+            file = codecs.open(os.path.join(self.suitePath, suiteName + '.yml'), 'a+', 'utf-8')
+            filecontent = yaml.dump(suiteBody,allow_unicode=True, default_flow_style=False)
+            file.write(yaml.dump(suiteBody,allow_unicode=True, default_flow_style=False))
+            file.flush()
 
     def run(self):
         runner = HttpRunner(failfast=False)
-        runner.run(self.casePath, mapping=self._mapping)
+        runner.run(self.suitePath, mapping=self._mapping)
         self.summary = parse_summary(runner.summary)
 
     def getNodeIdList(self,nodeId, treeBody):
@@ -428,10 +461,11 @@ class RunSingleApiInStep(Run):
         self._projectId = querySet.project_id
 
     def getStepBody(self,stepBody):
+        self.StepsSetList = {}
         self.StepsSetList[stepBody['name']] = {
             'name': stepBody.get('name', ''),
             'srcName': stepBody.get('srcName', ''),
-            'variables': self.convertListToDict(stepBody.get('variables', []).get('variables', []), 'variables'),
+            'variables': stepBody.get('variables', []).get('variables', []),
             'request': {
                 'url': stepBody.get('url'),
             },
@@ -444,22 +478,52 @@ class RunSingleApiInStep(Run):
         if (len(self.ApiList) == 0):
             self.errormsg = "没有发现要执行的API，请检查逻辑是否存在问题"
             return
-        self.TestCaseList=[]
-        if(hasattr(self,'config')):
-            self.TestCaseList.append({'config':self.config})
         for apiName,apiBody in self.StepsSetList.items():
             apiBody.update({'api': 'api' + '/' + apiBody['srcName'] + '.yml'})
-            self.TestCaseList.append({'test':apiBody})
+            self.TestCaseList.update({apiName:[{'test':apiBody}]})
         self.casePath = os.path.join(self._projectPath, 'testcases')
-        if (os.path.exists(os.path.join(self.casePath, 'apitreetest' + '.yml'))):
+        for caseName,caseBody in self.TestCaseList.items():
+            if (os.path.exists(os.path.join(self.casePath, caseName + '.yml'))):
+                return
+            file = codecs.open(os.path.join(self.casePath, caseName + '.yml'), 'a+', 'utf-8')
+            file.write(yaml.dump(caseBody,allow_unicode=True, default_flow_style=False))
+            file.flush()
+
+    def serializeTestSuite(self):
+        if (len(self.TestCaseList) == 0):
+            self.errormsg = "没有发现要执行的API，请检查逻辑是否存在问题"
             return
-        file = codecs.open(os.path.join(self.casePath, 'debugapi' + '.yml'), 'a+', 'utf-8')
-        file.write(yaml.dump(self.TestCaseList,allow_unicode=True, default_flow_style=False))
-        file.flush()
+        tmpTestSuiteList ={}
+        if(hasattr(self,'config')):
+            tmpTestSuiteList['config'] = self.config
+            self.parameters = tmpTestSuiteList['config'].get('parameters',None)
+
+        tmpTestSuiteList['testcases'] = {}
+        for caseName,caseBody in self.TestCaseList.items():
+            tmpTestSuiteList['testcases'].update({
+                caseName:{
+                    'testcase':'testcases/'+ caseName+'.yml',
+                }})
+            if(hasattr(self,'parameters') and getattr(self,'parameters') != None ):
+                tmpTestSuiteList['testcases'][caseName].update(
+                    {
+                        'parameters': self.parameters
+                    }
+                )
+        suiteName = list(tmpTestSuiteList['testcases'].keys())[0]
+        self.TestSuiteList[suiteName] = tmpTestSuiteList
+        self.suitePath = os.path.join(self._projectPath, 'testsuites')
+        for suiteName,suiteBody in self.TestSuiteList.items():
+            if (os.path.exists(os.path.join(self.suitePath, suiteName + '.yml'))):
+                return
+            file = codecs.open(os.path.join(self.suitePath, suiteName + '.yml'), 'a+', 'utf-8')
+            file.write(yaml.dump(suiteBody,allow_unicode=True, default_flow_style=False))
+            file.flush()
+
 
     def run(self):
         runner = HttpRunner(failfast=False)
-        runner.run(self.casePath, mapping=self._mapping)
+        runner.run(self.suitePath, mapping=self._mapping)
         self.summary = parse_summary(runner.summary)
 
 
