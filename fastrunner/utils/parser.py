@@ -4,7 +4,9 @@ from fastrunner.models import FileBinary
 import copy,os, codecs,yaml
 from fastrunner import models
 from django.core.exceptions import ObjectDoesNotExist
-
+from django.db import DataError
+from fastrunner.utils import response
+from django.db.models import Q
 
 
 
@@ -443,10 +445,6 @@ class SuiteFormat(object):
             tmp = {}
             tmp['id'] = each['id']
             tmp['api'] = each['name']
-            if(self.__optType == "update"):
-                tmp['srcindex'] = each.get('srcindex', 0)
-                if(each.get('flag','') == 'add'):
-                    tmp['flag'] = each.get('flag','')
             self.tests.append(tmp)
 
 '''之前设计了一个类SuiteFormat，这个类设计失败了，在逐渐完善的过程中，发现一开始设计的结构不满足使用要求，所以新创建了一个类，以前的suiteformat，要逐渐迁移到这个新的类上'''
@@ -731,6 +729,9 @@ class TestSuiteFormat(object):
             else:
                 continue
 
+    def getSpecIndexAPI(self):
+        return self.__specIndexAPI
+
     @staticmethod
     def __get_type(content):
         """
@@ -782,12 +783,14 @@ class TestSuiteFormat(object):
         self.testcase = {
             'suiteStep':suiteStep,
             'apiStep':apiStep,
-            'apiId':self.specAPIid
+            'apiId':self.specAPIid,
+
         }
         self.testcase['name'] = self.singleAPIBody['srcAPI']['name']
         self.testcase['method'] = self.singleAPIBody['srcAPI']['method']
         self.testcase['url'] = self.singleAPIBody['srcAPI']['url']
         self.testcase['srcindex'] = self.singleAPIBody['srcindex']
+        self.testcase['srcName'] = self.singleAPIBody['srcAPI']['name']
 
         if self.singleAPIBody['srcAPI'].get('headers'):
             for key, value in self.singleAPIBody['srcAPI'].pop('headers').items():
@@ -1311,3 +1314,277 @@ class testCaseFormat(object):
 
         for each in self.newbody.get('tests',[]):
             del each['srcindex']
+
+class suiteFormat(object):
+    def __init__(self,**kwargs):
+        try:
+            self.project = kwargs.get('project',-1)
+            self.relation = kwargs.get('relation',-1)
+            self.id = kwargs.get('id',-1)
+            queryset = models.TestSuite.objects.get(Q(project=self.project, relation=self.relation)
+                                                    | Q(id = self.id))
+        except ObjectDoesNotExist:
+            self.notExist = True
+            return
+        self.name = queryset.name
+        self.id = queryset.id
+        self.tests = eval(queryset.body)
+        for index,each in enumerate(self.tests):
+            each['srcindex'] = index
+            each['index'] = index
+            each['flag'] = ''
+
+    def getId(self):
+        return self.id
+
+    def getName(self):
+        return self.name
+
+    def setName(self,name):
+        self.name = name
+
+    def getNotExist(self):
+        if(hasattr(self,'notExist')):
+            return self.notExist
+
+    def getAllApi(self):
+        self.apiList = []
+        for eachID in self.tests:
+            try:
+                apiQueryset = models.API.objects.get(id=eachID.get('id',-1))
+            except:
+                continue
+
+            self.apiList.append(
+                {
+                    'index': eachID['index'],
+                    'srcindex': eachID['srcindex'],
+                    'id': apiQueryset.id,
+                    'method': apiQueryset.method,
+                    'name': apiQueryset.name,
+                    'url': apiQueryset.url,
+                    'flag': ''  # 接口返回的所有flag都是空的，前台如果进行加减操作，会对flag字段进行操作，置为add或者reduce
+                })
+        return self.apiList
+
+    def setTests(self,tests):
+        self.tests = []
+        for each in tests:
+            tmp = {}
+            tmp['id'] = each['id']
+            tmp['api'] = each['name']
+            self.tests.append(tmp)
+
+    def getSpecStep(self,index):
+        specStep = self.tests[int(index)]
+        srcApi = models.API.objects.get(project=self.project, id=specStep['id'])
+        self.stepBody = self.tests[int(index)]  #这个是给run方法预留的
+        return self.parse_http(specStep['id'],eval(srcApi.body),specStep,index)
+
+    def parse_http(self,apiId,apiDefine,coveredApi,index):
+        suiteStep = {
+            'headers': [],
+            'request': {
+                'data': [],
+                'params': [],
+                'json_data': '',
+            },
+            'variables': [],
+            'hooks': [],
+            'validate': [],
+            'extract': [],
+        }
+        apiStep = {
+            'headers': [],
+            'request': {
+                'data': [],
+                'params': [],
+                'json_data': '',
+            },
+            'variables': [],
+            'hooks': [],
+            'validate': [],
+            'extract': [],
+        }
+        self.testcase = {
+            'suiteStep': suiteStep,
+            'apiStep': apiStep,
+            'apiId': apiId,
+        }
+        self.testcase['name'] = apiDefine['name']
+        self.testcase['method'] = apiDefine['request']['method']
+        self.testcase['url'] = apiDefine['request']['url']
+        self.testcase['srcName'] = apiDefine['name']
+        self.testcase['srcindex'] = index
+        if 'headers' in apiDefine['request'].keys():
+            for key, value in apiDefine['request'].pop('headers').items():
+                apiStep['headers'].append({
+                    "key": key,
+                    "value": value,
+                })
+        if coveredApi.get('headers'):
+            for key, value in coveredApi.pop('headers').items():
+                suiteStep['headers'].append({
+                    "key": key,
+                    "value": value,
+                })
+        if 'data' in apiDefine['request'].keys():
+            for key, value in apiDefine['request'].pop('data').items():
+                obj = self.__get_type(value)
+                apiStep['request']['data'].append({
+                    "key": key,
+                    "value": obj[1],
+                    "type": obj[0],
+                })
+        if 'params' in apiDefine['request'].keys():
+            for key, value in apiDefine['request'].pop('params').items():
+                apiStep['request']['params'].append({
+                    "key": key,
+                    "value": value,
+                    "type": 1,
+                })
+        if 'json' in apiDefine['request'].keys():
+            apiStep['request']["json_data"] = \
+                json.dumps(apiDefine['request'].pop("json"), indent=4,
+                           separators=(',', ': '), ensure_ascii=False)
+        if apiDefine.get('variables'):
+            for content in apiDefine['variables']:
+                for key, value in content.items():
+                    obj = self.__get_type(value)
+                    apiStep["variables"].append({
+                        "key": key,
+                        "value": obj[1],
+                        "type": obj[0]
+                    })
+        if coveredApi.get('variables'):
+            for content in coveredApi['variables']:
+                for key, value in content.items():
+                    obj = self.__get_type(value)
+                    suiteStep["variables"].append({
+                        "key": key,
+                        "value": obj[1],
+                        "type": obj[0]
+                    })
+        if apiDefine.get('setup_hooks') or apiDefine.get('teardown_hooks'):
+            pass
+        if coveredApi.get('setup_hooks') or coveredApi.get('teardown_hooks'):
+            pass
+        if apiDefine.get('extract'):
+            for content in apiDefine['extract']:
+                for key, value in content.items():
+                    apiStep["extract"].append({
+                        "key": key,
+                        "value": value,
+                    })
+
+        if coveredApi.get('extract'):
+            for content in coveredApi['extract']:
+                for key, value in content.items():
+                    suiteStep["extract"].append({
+                        "key": key,
+                        "value": value,
+                    })
+
+        if apiDefine.get('validate'):
+            for content in apiDefine.get('validate'):
+                for key, value in content.items():
+                    obj = self.__get_type(value[1])
+                    apiStep["validate"].append({
+                        "expect": obj[1],
+                        "actual": value[0],
+                        "comparator": key,
+                        "type": obj[0]
+                    })
+
+        if coveredApi.get('validate'):
+            for content in coveredApi.get('validate'):
+                for key, value in content.items():
+                    obj = self.__get_type(value[1])
+                    suiteStep["validate"].append({
+                        "expect": obj[1],
+                        "actual": value[0],
+                        "comparator": key,
+                        "type": obj[0]
+                    })
+
+        return self.testcase
+
+    @staticmethod
+    def __get_type(content):
+        """
+        返回data_type 默认string
+        """
+        var_type = {
+            "str": 1,
+            "int": 2,
+            "float": 3,
+            "bool": 4,
+            "list": 5,
+            "dict": 6,
+        }
+
+        key = str(type(content).__name__)
+
+        if key in ["list", "dict"]:
+            content = json.dumps(content)
+        else:
+            content = str(content)
+        return var_type[key], content
+
+    def updateTests(self,**kwargs):
+        self.setName(kwargs.get('name'))
+        tmpTests = []
+        for each_new in kwargs.get('tests'):
+            if(each_new.get('flag') == 'add'):
+                if('srcindex' in each_new.keys()):
+                    del each_new['srcindex']
+                tmpTests.append({'id':each_new['id'],
+                                 'api':each_new['name']})
+                continue
+            for each_src in self.tests:
+                if (each_src.get('srcindex', -1) == each_new.get('srcindex', -2)):
+                    if ('srcindex' in each_src.keys()):
+                        del each_src['srcindex']
+                    if ('index' in each_src.keys()):
+                        del each_src['index']
+                    if ('flag' in each_src.keys()):
+                        del each_src['flag']
+                        #TODO:上面三个if语句能不能简写
+                    tmpTests.append(each_src)
+                    break
+        self.tests = tmpTests
+
+    def updateTestStep(self,index,newteststep):
+        self.tests[index]['extract'] = newteststep['extract'].get('extract', {})
+        self.tests[index]['validate'] = newteststep['validate'].get('validate', {})
+        self.tests[index]['variables'] = newteststep['variables'].get('variables', {})
+        if ('srcindex' in self.tests[index].keys()):
+            del self.tests[index]['srcindex']
+        if ('index' in self.tests[index].keys()):
+            del self.tests[index]['index']
+        if ('flag' in self.tests[index].keys()):
+            del self.tests[index]['flag']
+            # TODO:上面三个if语句能不能简写
+
+    def save(self):
+        if(hasattr(self,'notExist') and getattr(self,'notExist') == True):
+            project = models.Project.objects.get(id=self.project)
+            try:
+                models.TestSuite.objects.create(
+                    name=self.name,
+                    body=self.tests,
+                    project=project,
+                    relation=self.relation
+                )
+            except DataError:
+                return response.DATA_SAVE_FAILED
+        else:
+            try:
+                models.TestSuite.objects.filter(Q(project=self.project, relation=self.relation)
+                                             | Q(id=self.id)).update(
+                    name=self.name,
+                    body=self.tests,
+                )
+            except DataError:
+                return response.DATA_SAVE_FAILED
+        return response.DATA_SAVE_SUCCESS

@@ -302,3 +302,15 @@ HOST_DEL_SUCCESS = {
     'success': True,
     'msg': '域名删除成功'
 }
+
+DATA_SAVE_FAILED = {
+    'code': '0100',
+    'success': False,
+    'msg': '数据保存失败！'
+}
+
+DATA_SAVE_SUCCESS = {
+    'code': '0100',
+    'success': True,
+    'msg': '数据更新成功！'
+}

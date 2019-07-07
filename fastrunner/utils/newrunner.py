@@ -14,6 +14,9 @@ from fastrunner.utils.parser import Format
 import traceback
 from fastrunner.utils.loader import save_summary
 from fastrunner.utils.tree import getNodeIdList
+from fastrunner.utils.parser import Format, Parse,SuiteFormat,SuiteBodyFormat,TestSuiteFormat,suiteFormat
+
+
 
 EXEC = sys.executable
 #TODO：所有的runcase的地方，都需要增加try catch，并且前台输出后台运行的相关报错
@@ -444,7 +447,7 @@ class RunSingleApiInStep(Run):
         #在stepbody或者casebody页面，调试api时，传入的内容是原api的id和修改后需要覆盖的casebody
         super().__init__(**kwargs)
         self.getApiBody(kwargs.get('apiId'))
-        self.getStepBody(stepBody=kwargs.get('apiBody',None))
+        self.getStepBody(kwargs.get('apiBody',None),kwargs.get('index',None))
 
 
     def getApiBody(self,apiId):
@@ -460,18 +463,29 @@ class RunSingleApiInStep(Run):
         self.ApiList[querySet.name] = eval(querySet.body)
         self._projectId = querySet.project_id
 
-    def getStepBody(self,stepBody):
+    def getStepBody(self,stepBody,index):
         self.StepsSetList = {}
-        self.StepsSetList[stepBody['name']] = {
-            'name': stepBody.get('name', ''),
-            'srcName': stepBody.get('srcName', ''),
-            'variables': stepBody.get('variables', []).get('variables', []),
-            'request': {
-                'url': stepBody.get('url'),
-            },
-            'extract': stepBody.get('extract', []).get('extract', []),
-            'validate': stepBody.get('validate', []).get('validate', [])
-        }
+        if(stepBody != None):
+            self.StepsSetList[stepBody['name']] = {
+                'name': stepBody.get('name', ''),
+                'srcName': stepBody.get('srcName', ''),
+                'variables': stepBody.get('variables', []).get('variables', []),
+                'request': {
+                    'url': stepBody.get('url'),
+                },
+                'extract': stepBody.get('extract', []).get('extract', []),
+                'validate': stepBody.get('validate', []).get('validate', [])
+            }
+        else:
+            suite = suiteFormat(project=self._projectId, relation=self._relation)
+            suite.getSpecStep(index)
+            self.StepsSetList[suite.stepBody['api']] = {
+                'name': suite.stepBody.get('api', ''),
+                'srcName': suite.stepBody.get('api', ''),
+                'variables': suite.stepBody.get('variables', []),
+                'extract': suite.stepBody.get('extract', []),
+                'validate': suite.stepBody.get('validate', [])
+            }
 
     def serializeTestCase(self):
         #该函数只适用于单个步骤的调试
@@ -525,7 +539,6 @@ class RunSingleApiInStep(Run):
         runner = HttpRunner(failfast=False)
         runner.run(self.suitePath, mapping=self._mapping)
         self.summary = parse_summary(runner.summary)
-
 
 
 

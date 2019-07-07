@@ -195,7 +195,7 @@ def run_suitesinglestep(request):
 
     debugApi = RunSingleApiInStep(config=request.data['config'], project=request.data['project'],
                                   apiId=request.data['apiId'],
-                                  apiBody=request.data, projectPath=projectPath)
+                                  index=request.data['index'], projectPath=projectPath,relation = request.data['relation'][0])
     debugApi.serializeApi()
     debugApi.serializeDebugtalk()
     debugApi.generateMapping()

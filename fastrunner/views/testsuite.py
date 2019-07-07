@@ -3,7 +3,7 @@ from rest_framework.viewsets import GenericViewSet
 from fastrunner import models, serializers
 from rest_framework.response import Response
 from fastrunner.utils import response
-from fastrunner.utils.parser import Format, Parse,SuiteFormat,SuiteBodyFormat,TestSuiteFormat
+from fastrunner.utils.parser import Format, Parse,SuiteFormat,SuiteBodyFormat,TestSuiteFormat,suiteFormat
 from django.db import DataError
 from ..utils.parser import getApiFromSuite
 from django.http import HttpResponse
@@ -29,44 +29,20 @@ class SuiteTemplateView(GenericViewSet):
             node: int  当前选中的步骤集节点
         }
         """
-
-        relation = request.query_params["node"]
-        project = request.query_params["project"]
         returnvalue = {
-            'id':'',
+            'id': '',
             'name': '',
             'maxindex': 0,
             'tests': [],
-            'empty':True,
+            'empty': True,
         }
-        try:
-            queryset = self.get_queryset().get(project=project, relation=relation)
-        except ObjectDoesNotExist:
+        suite = suiteFormat(project=request.query_params["project"],relation=request.query_params["node"])
+        if(hasattr(suite,'notExist') and suite.getNotExist() == True):
             return HttpResponse(json.dumps(returnvalue),content_type='application/json')
-
         returnvalue['empty'] = False
-        returnvalue['id'] = queryset.id
-        returnvalue['name'] = queryset.name
-        containedApi = getApiFromSuite(queryset)
-        #apiQueryset = models.API.objects.filter(project=project,id__in = containedApi)
-        index = 0 #index是从1开始计算的，第一个案例的顺序值是1，第二个是2
-        for each in containedApi:
-            try:
-                apiQueryset = models.API.objects.get(project=project,id=each)
-            except:
-                continue
-            index = index + 1
-            returnvalue['tests'].append(
-                {
-                    'index':index,
-                    'srcindex': index,
-                    'id':apiQueryset.id,
-                    'method':apiQueryset.method,
-                    'name':apiQueryset.name,
-                    'url':apiQueryset.url,
-                    'flag':'' #接口返回的所有flag都是空的，前台如果进行加减操作，会对flag字段进行操作，置为add或者reduce
-                })
-        returnvalue['maxindex'] = index
+        returnvalue['id'] = suite.getId()
+        returnvalue['name'] = suite.getName()
+        returnvalue['tests'] = suite.getAllApi()
 
         return HttpResponse(json.dumps(returnvalue),content_type='application/json')
 
@@ -74,88 +50,20 @@ class SuiteTemplateView(GenericViewSet):
         """
         新增一个接口
         """
-
-        name = request.data['name']
-        project = models.Project.objects.get(id=request.data['project'])
-        relation = request.data['relation']
-        api = SuiteFormat(request.data['tests'])
-        body = json.dumps({
-            'name':name,
-            'def': name,
-            'tests': api.tests
-        })
-        suite = {
-            'name': name,
-            'body': body,
-            'project': project,
-            'relation': relation
-        }
-
-        try:
-            models.TestSuite.objects.create(**suite)
-        except DataError:
-            return Response(response.DATA_TO_LONG)
-
-        #return Response(response.API_ADD_SUCCESS)
-        return HttpResponse("seccess")
+        suite = suiteFormat(project=request.data["project"],relation=request.data["relation"])
+        suite.setName(request.data['name']);
+        suite.setTests(request.data['tests'])
+        return HttpResponse(suite.save())
 
     def update(self, request, **kwargs):
         """
         更新接口
         """
-        pk = kwargs['pk']
-        try:
-            src_data = self.get_queryset().get(id=pk);
-        except ObjectDoesNotExist:
-            return HttpResponse('error')
-
-        src_body = eval(src_data.body)
-        src_tests = copy.deepcopy(src_body['tests'])
-        for index,each in enumerate(src_tests):
-            each['srcindex'] = index + 1
-
-        new_suite = SuiteFormat(request.data['tests'],optType="update")
-
-        tmp = []
-        srcindex = 1
-        for each_new in new_suite.tests:
-            if(each_new.get('flag','') == 'add'):
-                del each_new['srcindex']
-                tmp.append(each_new)
-
-                continue
-            for each_src in src_tests:
-                if(each_src.get('srcindex',-1) == each_new.get('srcindex',-2) and each_new['srcindex'] != 0 ):
-                    del each_src['srcindex']
-                    tmp.append(each_src)
-                    break
-        tmp_body = {
-            'name':request.data['name'],
-            'def':request.data['name'],
-            'tests':tmp
-        }
-        tmp_body = json.dumps(tmp_body)
-        update_body={
-            'name':request.data['name'],
-            'body':tmp_body
-        }
-
-        try:
-            models.TestSuite.objects.filter(id=pk).update(**update_body)
-        except ObjectDoesNotExist:
-            return Response(response.API_NOT_FOUND)
-
-        return Response(response.API_UPDATE_SUCCESS)
+        suite = suiteFormat(id=kwargs['pk'])
+        suite.updateTests(name = request.data['name'],tests = request.data['tests'])
+        return Response(suite.save())
 
     def delete(self, request, **kwargs):
-        """
-        删除一个接口 pk
-        删除多个
-        [{
-            id:int
-        }]
-        """
-
         try:
             if kwargs.get('pk'):  # 单个删除
                 models.API.objects.get(id=kwargs['pk']).delete()
@@ -172,43 +80,14 @@ class SuiteTemplateView(GenericViewSet):
         """
         查询单个api，返回body信息
         """
-        relation = request.query_params["node"]
-        project = request.query_params["project"]
-        index = int(request.query_params['index'])
-        try:
-            queryset = self.get_queryset().get(project=project, relation=relation)
-        except ObjectDoesNotExist:
-            return Response({'success':False})
-
-        suite_body = TestSuiteFormat(queryset.body)
-        suite_body.getAPIId(index)
-        apiQueryset = models.API.objects.get(project=project, id=suite_body.specAPIid)
-        suite_body.init_singleAPIBody(eval(apiQueryset.body))
-
-        suite_body.parse_http()
-
-        return Response(suite_body.testcase)
+        suite = suiteFormat(project=request.query_params["project"],relation=request.query_params["node"])
+        suite.getSpecStep(request.query_params["index"])
+        return Response(suite.testcase)
 
     def updateSingleStep(self, request):
         """
         查询单个api，返回body信息
         """
-        relation = request.data["relation"]
-        project = request.data["project"]
-        try:
-            queryset = self.get_queryset().get(project=project, relation=relation)
-        except ObjectDoesNotExist:
-            return Response({'success':False})
-
-        suite_body = TestSuiteFormat(queryset.body)
-        suite_body.updateStep(request.data)
-
-        new_body = json.dumps(suite_body.body)
-        update_body = {'body': new_body}
-
-        try:
-            models.TestSuite.objects.filter(project=project, relation=relation).update(**update_body)
-        except ObjectDoesNotExist:
-            return Response(response.API_NOT_FOUND)
-
-        return Response(response.API_UPDATE_SUCCESS)
+        suite = suiteFormat(project=request.data["project"],relation=request.data["relation"])
+        suite.updateTestStep(int(request.data["srcindex"]),request.data)
+        return Response(suite.save())
