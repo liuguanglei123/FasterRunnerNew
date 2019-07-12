@@ -4,11 +4,11 @@ from rest_framework.response import Response
 from fastrunner.utils.parser import Format
 from fastrunner import models
 from django.conf import settings
-import os,time
+import os,time,sys
 from httprunner.utils import create_scaffold
 from fastrunner.utils import runner
 import traceback
-from fastrunner.utils.newrunner import RunSingleApi,RunTree,RunSingleApiInStep
+from fastrunner.utils.newrunner import RunSingleApi,RunTree,RunSingleApiInStep,RunSingleApiInCase
 
 """运行方式
 """
@@ -24,6 +24,8 @@ def run_api_pk(request, **kwargs):
     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
+    if ('debugtalk' in sys.modules.keys()):
+        del sys.modules['debugtalk']
 
     debugApi = RunSingleApi(projectPath=projectPath, config=request.query_params['config'],
                             apiId=kwargs['pk'], type="singleapi")
@@ -33,6 +35,7 @@ def run_api_pk(request, **kwargs):
     debugApi.serializeDebugtalk()
     debugApi.generateMapping()
     debugApi.run()
+
     return Response(debugApi.summary)
 
 
@@ -158,33 +161,22 @@ def run_suite_tree(request):
 
 @api_view(['POST'])
 def run_suitestep(request):
-    """run testsuite by tree
-    {
-        project: int
-        relation: list
-        name: str
-        async: bool
-    }
-    """
-    # order by id default
     run_test_path = settings.RUN_TEST_PATH
     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
-
-    allAPI = runner.RunTestSuite(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath,config=request.data['config'])
-    allAPI.serializeAPI()
-    allAPI.serializeTestSuite()
-    allAPI.serializeDebugtalk()
-    allAPI.generateMapping()
-    if (request.data['async'] == True):
-        allAPI.runBackTestSuite(request.data['name'])
-        summary = loader.TEST_NOT_EXISTS
-        summary["msg"] = "接口运行中，请稍后查看报告"
-        return Response(summary)
-    else:
-        allAPI.runTestSuite()
-        return Response(allAPI.summary)
+    if ('debugtalk' in sys.modules.keys()):
+        del sys.modules['debugtalk']
+    suitesTree = RunTree(type="suiteTree", relation=request.data['relation'], project=request.data['project'],
+                      projectPath=projectPath, config=request.data['config'], isAsync=request.data['async'])
+    suitesTree.serializeApi()
+    suitesTree.serializeTestCase()
+    suitesTree.serializeTestSuite()
+    suitesTree.serializeDebugtalk()
+    suitesTree.generateMapping()
+    #TODO：这里没有实现异步执行，需要修改
+    suitesTree.run()
+    return Response(suitesTree.summary)
 
 @api_view(['POST'])
 def run_suitesinglestep(request):
@@ -192,7 +184,8 @@ def run_suitesinglestep(request):
     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
-
+    if ('debugtalk' in sys.modules.keys()):
+        del sys.modules['debugtalk']
     debugApi = RunSingleApiInStep(config=request.data['config'], project=request.data['project'],
                                   apiId=request.data['apiId'],
                                   index=request.data['index'], projectPath=projectPath,relation = request.data['relation'][0])
@@ -202,34 +195,18 @@ def run_suitesinglestep(request):
     debugApi.serializeTestCase()
     debugApi.serializeTestSuite()
     debugApi.run()
+    if ('debugtalk' in sys.modules.keys()):
+        del sys.modules['debugtalk']
     return Response(debugApi.summary)
-
-    allAPI = runner.RunTestSuite(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath,config=request.data['config'])
-    allAPI.serializeAPI()
-    allAPI.serializeSingleStep(request.data['index'])
-    allAPI.serializeDebugtalk()
-    allAPI.generateMapping()
-    allAPI.runTestSuite()
-
-    return Response(allAPI.summary)
 
 @api_view(['POST'])
 def run_api_tree(request):
-    """run api by tree
-    {
-        project: int
-        relation: list
-        name: str
-        async: bool
-    }
-    """
-    # order by id default
-
     run_test_path = settings.RUN_TEST_PATH
     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
-
+    if ('debugtalk' in sys.modules.keys()):
+        del sys.modules['debugtalk']
     apiTree = RunTree(type="apiTree", relation=request.data['relation'],project=request.data['project'],
                      projectPath=projectPath,config=request.data['config'],isAsync=request.data['async'])
 
@@ -251,7 +228,8 @@ def run_api(request):
     run_test_path = settings.RUN_TEST_PATH
     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
     projectPath = os.path.join(run_test_path, timedir)
-
+    if ('debugtalk' in sys.modules.keys()):
+        del sys.modules['debugtalk']
     create_scaffold(projectPath)
     debugApi = RunSingleApi(project=api.project,projectPath=projectPath,config=request.data['config'],
                 apiBody=api.testcase,type="debugapi")
@@ -266,34 +244,22 @@ def run_api(request):
 
 @api_view(['POST'])
 def run_casestep(request):
-    """run casestep by tree
-    {
-        project: int
-        relation: list
-        name: str
-        async: bool
-    }
-    """
-    # order by id default
     run_test_path = settings.RUN_TEST_PATH
     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
-
-    allAPI = runner.RunTestCase(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath,config=request.data['config'])
-    allAPI.serializeAPI()
-    allAPI.serializeSuite()
-    allAPI.serializeTestCase()
-    allAPI.serializeDebugtalk()
-    allAPI.generateMapping()
-    if (request.data['async'] == True):
-        allAPI.runBackTestCase(request.data['name'])
-        summary = loader.TEST_NOT_EXISTS
-        summary["msg"] = "接口运行中，请稍后查看报告"
-        return Response(summary)
-    else:
-        allAPI.runTestCase()
-        return Response(allAPI.summary)
+    if ('debugtalk' in sys.modules.keys()):
+        del sys.modules['debugtalk']
+    suitesTree = RunTree(type="caseTree", relation=request.data['relation'], project=request.data['project'],
+                         projectPath=projectPath, config=request.data['config'], isAsync=request.data['async'])
+    suitesTree.serializeApi()
+    suitesTree.serializeTestCase()
+    suitesTree.serializeTestSuite()
+    suitesTree.serializeDebugtalk()
+    suitesTree.generateMapping()
+    # TODO：这里没有实现异步执行，需要修改
+    suitesTree.run()
+    return Response(suitesTree.summary)
 
 @api_view(['POST'])
 def run_casesinglestep(request):
@@ -310,16 +276,26 @@ def run_casesinglestep(request):
     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
-
-    allAPI = runner.RunTestCase(project=request.data['project'],relation=request.data['relation'],projectPath=projectPath,config=request.data['config'])
-    allAPI.serializeAPI()
-    allAPI.serializeSingleStep(request.data['index'])
-    allAPI.serializeDebugtalk()
-    allAPI.generateMapping()
-    allAPI.runSingleStep()
-
-    return Response(allAPI.summary)
-
+    if ('debugtalk' in sys.modules.keys()):
+        del sys.modules['debugtalk']
+    singleStep = ''
+    if('apiId' in request.data.keys()):
+        singleStep = RunSingleApiInCase(config=request.data['config'], project=request.data['project'],
+                                    apiId=request.data['apiId'],
+                                    index=request.data['index'], projectPath=projectPath,relation = request.data['relation'][0])
+    elif('suiteId' in request.data.keys()):
+        #TODO:这里的实现只是个临时方案，还要重写的
+        singleStep = RunSingleApiInCase(config=request.data['config'], project=request.data['project'],
+                                      suiteId=request.data['suiteId'],
+                                      index=request.data['index'], projectPath=projectPath,
+                                      relation=request.data['relation'][0])
+    singleStep.serializeApi()
+    singleStep.serializeDebugtalk()
+    singleStep.generateMapping()
+    singleStep.serializeTestCase()
+    singleStep.serializeTestSuite()
+    singleStep.run()
+    return Response(singleStep.summary)
 
 @api_view(['POST'])
 def run_DebugSuiteStep(request):
@@ -329,7 +305,8 @@ def run_DebugSuiteStep(request):
     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
-
+    if ('debugtalk' in sys.modules.keys()):
+        del sys.modules['debugtalk']
     debugApi = RunSingleApiInStep(config=request.data['config'],project=request.data['project'],apiId=request.data['apiId'],
                                   apiBody=request.data, projectPath=projectPath)
     debugApi.serializeApi()
@@ -338,6 +315,8 @@ def run_DebugSuiteStep(request):
     debugApi.serializeTestCase()
     debugApi.serializeTestSuite()
     debugApi.run()
+    if ('debugtalk' in sys.modules.keys()):
+        del sys.modules['debugtalk']
     return Response(debugApi.summary)
 
 
@@ -349,7 +328,8 @@ def run_DebugCaseStep(request):
     timedir = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime())
     projectPath = os.path.join(run_test_path, timedir)
     create_scaffold(projectPath)
-
+    if ('debugtalk' in sys.modules.keys()):
+        del sys.modules['debugtalk']
     debugApi = RunSingleApiInStep(config=request.data['config'],project=request.data['project'],apiId=request.data['apiId'],
                                   apiBody=request.data, projectPath=projectPath)
     debugApi.serializeApi()

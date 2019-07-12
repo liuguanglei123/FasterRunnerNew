@@ -31,6 +31,27 @@ def convertListToDict(dictInList, type):
             return tmp
 
 
+def get_type(content):
+    """
+    返回data_type 默认string
+    """
+    var_type = {
+        "str": 1,
+        "int": 2,
+        "float": 3,
+        "bool": 4,
+        "list": 5,
+        "dict": 6,
+    }
+
+    key = str(type(content).__name__)
+
+    if key in ["list", "dict"]:
+        content = json.dumps(content)
+    else:
+        content = str(content)
+    return var_type[key], content
+
 class FileType(Enum):
     """
     文件类型枚举
@@ -216,28 +237,6 @@ class Parse(object):
         self.__level = level
         self.testcase = None
 
-    @staticmethod
-    def __get_type(content):
-        """
-        返回data_type 默认string
-        """
-        var_type = {
-            "str": 1,
-            "int": 2,
-            "float": 3,
-            "bool": 4,
-            "list": 5,
-            "dict": 6,
-        }
-
-        key = str(type(content).__name__)
-
-        if key in ["list", "dict"]:
-            content = json.dumps(content, ensure_ascii=False)
-        else:
-            content = str(content)
-        return var_type[key], content
-
     def parse_http(self):
         """
         标准前端脚本格式
@@ -297,7 +296,7 @@ class Parse(object):
                 test["validate"] = []
                 for content in self.__validate:
                     for key, value in content.items():
-                        obj = Parse.__get_type(value[1])
+                        obj = get_type(value[1])
                         test["validate"].append({
                             "expect": obj[1],
                             "actual": value[0],
@@ -315,7 +314,7 @@ class Parse(object):
                     for key, value in content.items():
                         test["parameters"].append({
                             "key": key,
-                            "value": Parse.__get_type(value)[1],
+                            "value": get_type(value)[1],
                             "desc": self.__desc["parameters"][key]
                         })
 
@@ -331,7 +330,7 @@ class Parse(object):
         if self.__request.get('data'):
             test["request"]["data"] = []
             for key, value in self.__request.pop('data').items():
-                obj = Parse.__get_type(value)
+                obj = get_type(value)
 
                 test['request']['data'].append({
                     "key": key,
@@ -369,7 +368,7 @@ class Parse(object):
             test["variables"] = []
             for content in self.__variables:
                 for key, value in content.items():
-                    obj = Parse.__get_type(value)
+                    obj = get_type(value)
                     test["variables"].append({
                         "key": key,
                         "value": obj[1],
@@ -477,28 +476,6 @@ class SuiteBodyFormat(object):
             'tests': []
         }
 
-    @staticmethod
-    def __get_type(content):
-        """
-        返回data_type 默认string
-        """
-        var_type = {
-            "str": 1,
-            "int": 2,
-            "float": 3,
-            "bool": 4,
-            "list": 5,
-            "dict": 6,
-        }
-
-        key = str(type(content).__name__)
-
-        if key in ["list", "dict"]:
-            content = json.dumps(content)
-        else:
-            content = str(content)
-        return var_type[key], content
-
     def parseSingleApi(self,index):
         srcindex = 0
         for each in self.srcbody['tests']:
@@ -572,7 +549,7 @@ class SuiteBodyFormat(object):
 
         if self.singleSrcAPI.get('data'):
             for key, value in self.singleSrcAPI.pop('data').items():
-                obj = self.__get_type(value)
+                obj = get_type(value)
                 self.srcAPI['data'].append({
                     'key':key,
                     'value':obj[1],
@@ -605,7 +582,7 @@ class SuiteBodyFormat(object):
         if self.singleSrcAPI.get('variables'):
             for content in self.singleSrcAPI['variables']:
                 for key, value in content.items():
-                    obj = self.__get_type(value)
+                    obj = get_type(value)
                     self.srcAPI["variables"].append({
                         "key": key,
                         "value": obj[1],
@@ -732,28 +709,6 @@ class TestSuiteFormat(object):
     def getSpecIndexAPI(self):
         return self.__specIndexAPI
 
-    @staticmethod
-    def __get_type(content):
-        """
-        返回data_type 默认string
-        """
-        var_type = {
-            "str": 1,
-            "int": 2,
-            "float": 3,
-            "bool": 4,
-            "list": 5,
-            "dict": 6,
-        }
-
-        key = str(type(content).__name__)
-
-        if key in ["list", "dict"]:
-            content = json.dumps(content)
-        else:
-            content = str(content)
-        return var_type[key], content
-
     #将headers params data等转换成列表，方便前台进行展示
     def parse_http(self):
         suiteStep = {
@@ -808,7 +763,7 @@ class TestSuiteFormat(object):
 
         if self.singleAPIBody['srcAPI'].get('data'):
             for key, value in self.singleAPIBody['srcAPI'].pop('data').items():
-                obj = self.__get_type(value)
+                obj = get_type(value)
                 apiStep['request']['data'].append({
                     "key": key,
                     "value": obj[1],
@@ -817,7 +772,7 @@ class TestSuiteFormat(object):
 
         if self.singleAPIBody['body'].get('data'):
             for key, value in self.singleAPIBody['body'].pop('data').items():
-                obj = self.__get_type(value)
+                obj = get_type(value)
                 suiteStep['request']['data'].append({
                     "key": key,
                     "value": obj[1],
@@ -853,7 +808,7 @@ class TestSuiteFormat(object):
         if self.singleAPIBody['srcAPI'].get('variables'):
             for content in self.singleAPIBody['srcAPI']['variables']:
                 for key, value in content.items():
-                    obj = self.__get_type(value)
+                    obj = get_type(value)
                     apiStep["variables"].append({
                         "key": key,
                         "value": obj[1],
@@ -863,7 +818,7 @@ class TestSuiteFormat(object):
         if self.singleAPIBody['body'].get('variables'):
             for content in self.singleAPIBody['body']['variables']:
                 for key, value in content.items():
-                    obj = self.__get_type(value)
+                    obj = get_type(value)
                     suiteStep["variables"].append({
                         "key": key,
                         "value": obj[1],
@@ -895,7 +850,7 @@ class TestSuiteFormat(object):
         if self.singleAPIBody['srcAPI'].get('validate'):
             for content in self.singleAPIBody['srcAPI'].get('validate'):
                 for key, value in content.items():
-                    obj = self.__get_type(value[1])
+                    obj = get_type(value[1])
                     apiStep["validate"].append({
                         "expect": obj[1],
                         "actual": value[0],
@@ -906,7 +861,7 @@ class TestSuiteFormat(object):
         if self.singleAPIBody['body'].get('validate'):
             for content in self.singleAPIBody['body'].get('validate'):
                 for key, value in content.items():
-                    obj = self.__get_type(value[1])
+                    obj = get_type(value[1])
                     suiteStep["validate"].append({
                         "expect": obj[1],
                         "actual": value[0],
@@ -1172,7 +1127,7 @@ class testCaseFormat(object):
 
         if self.singleAPIBody['srcAPI'].get('data'):
             for key, value in self.singleAPIBody['srcAPI'].pop('data').items():
-                obj = self.__get_type(value)
+                obj = get_type(value)
                 apiStep['request']['data'].append({
                     "key": key,
                     "value": obj[1],
@@ -1181,7 +1136,7 @@ class testCaseFormat(object):
 
         if self.singleAPIBody['body'].get('data'):
             for key, value in self.singleAPIBody['body'].pop('data').items():
-                obj = self.__get_type(value)
+                obj = get_type(value)
                 suiteStep['request']['data'].append({
                     "key": key,
                     "value": obj[1],
@@ -1217,7 +1172,7 @@ class testCaseFormat(object):
         if self.singleAPIBody['srcAPI'].get('variables'):
             for content in self.singleAPIBody['srcAPI']['variables']:
                 for key, value in content.items():
-                    obj = self.__get_type(value)
+                    obj = get_type(value)
                     apiStep["variables"].append({
                         "key": key,
                         "value": obj[1],
@@ -1227,7 +1182,7 @@ class testCaseFormat(object):
         if self.singleAPIBody['body'].get('variables'):
             for content in self.singleAPIBody['body']['variables']:
                 for key, value in content.items():
-                    obj = self.__get_type(value)
+                    obj = get_type(value)
                     suiteStep["variables"].append({
                         "key": key,
                         "value": obj[1],
@@ -1259,7 +1214,7 @@ class testCaseFormat(object):
         if self.singleAPIBody['srcAPI'].get('validate'):
             for content in self.singleAPIBody['srcAPI'].get('validate'):
                 for key, value in content.items():
-                    obj = self.__get_type(value[1])
+                    obj = get_type(value[1])
                     apiStep["validate"].append({
                         "expect": obj[1],
                         "actual": value[0],
@@ -1270,7 +1225,7 @@ class testCaseFormat(object):
         if self.singleAPIBody['body'].get('validate'):
             for content in self.singleAPIBody['body'].get('validate'):
                 for key, value in content.items():
-                    obj = self.__get_type(value[1])
+                    obj = get_type(value[1])
                     suiteStep["validate"].append({
                         "expect": obj[1],
                         "actual": value[0],
@@ -1430,7 +1385,7 @@ class suiteFormat(object):
                 })
         if 'data' in apiDefine['request'].keys():
             for key, value in apiDefine['request'].pop('data').items():
-                obj = self.__get_type(value)
+                obj = get_type(value)
                 apiStep['request']['data'].append({
                     "key": key,
                     "value": obj[1],
@@ -1450,7 +1405,7 @@ class suiteFormat(object):
         if apiDefine.get('variables'):
             for content in apiDefine['variables']:
                 for key, value in content.items():
-                    obj = self.__get_type(value)
+                    obj = get_type(value)
                     apiStep["variables"].append({
                         "key": key,
                         "value": obj[1],
@@ -1459,7 +1414,7 @@ class suiteFormat(object):
         if coveredApi.get('variables'):
             for content in coveredApi['variables']:
                 for key, value in content.items():
-                    obj = self.__get_type(value)
+                    obj = get_type(value)
                     suiteStep["variables"].append({
                         "key": key,
                         "value": obj[1],
@@ -1488,7 +1443,7 @@ class suiteFormat(object):
         if apiDefine.get('validate'):
             for content in apiDefine.get('validate'):
                 for key, value in content.items():
-                    obj = self.__get_type(value[1])
+                    obj = get_type(value[1])
                     apiStep["validate"].append({
                         "expect": obj[1],
                         "actual": value[0],
@@ -1499,7 +1454,7 @@ class suiteFormat(object):
         if coveredApi.get('validate'):
             for content in coveredApi.get('validate'):
                 for key, value in content.items():
-                    obj = self.__get_type(value[1])
+                    obj = get_type(value[1])
                     suiteStep["validate"].append({
                         "expect": obj[1],
                         "actual": value[0],
@@ -1588,3 +1543,280 @@ class suiteFormat(object):
             except DataError:
                 return response.DATA_SAVE_FAILED
         return response.DATA_SAVE_SUCCESS
+
+
+class caseFormat(object):
+    def __init__(self,**kwargs):
+        try:
+            self.project = kwargs.get('project',-1)
+            self.relation = kwargs.get('relation',-1)
+            self.id = kwargs.get('id',-1)
+            queryset = models.TestCase.objects.get(Q(project=self.project, relation=self.relation)
+                                                    | Q(id = self.id))
+        except ObjectDoesNotExist:
+            self.notExist = True
+            return
+        self.name = queryset.name
+        self.id = queryset.id
+        self.tests = eval(queryset.body)
+        for index,each in enumerate(self.tests):
+            each['srcindex'] = index
+            each['index'] = index
+            each['flag'] = ''
+
+    def getId(self):
+        return self.id
+
+    def getName(self):
+        return self.name
+
+    def setName(self,name):
+        self.name = name
+
+    def setTests(self,tests):
+        self.tests = []
+        for each in tests:
+            tmp = {}
+            if(each['method'].lower() == 'suite'):
+                tmp['testcase'] = each['name']
+                tmp['id'] = each['id']
+            elif(each['method'].lower() in ('post','get','delete','patch','put','head','options')):
+                tmp['api'] = each['name']
+                tmp['id'] = each['id']
+            self.tests.append(tmp)
+
+    def getNotExist(self):
+        if(hasattr(self,'notExist')):
+            return self.notExist
+
+    def getAllStep(self):
+        self.stepList = []
+        for each in self.tests:
+            if('api' in each.keys()):
+                try:
+                    apiQueryset = models.API.objects.get(id=each.get('id',-1))
+                except:
+                    continue
+
+                self.stepList.append(
+                    {
+                        'index': each['index'],
+                        'srcindex': each['srcindex'],
+                        'id': apiQueryset.id,
+                        'method': apiQueryset.method,
+                        'name': apiQueryset.name,
+                        'url': apiQueryset.url,
+                        'flag': ''  # 接口返回的所有flag都是空的，前台如果进行加减操作，会对flag字段进行操作，置为add或者reduce
+                    })
+            if('testcase' in each.keys()):
+                try:
+                    suiteQueryset = models.TestSuite.objects.get(project=self.project,id=each['id'])
+                except:
+                    continue
+
+                self.stepList.append(
+                    {
+                        'index': each['index'],
+                        'srcindex': each['srcindex'],
+                        'id': suiteQueryset.id,
+                        'method': 'SUITE',
+                        'name': suiteQueryset.name,
+                        'flag': ''  # 接口返回的所有flag都是空的，前台如果进行加减操作，会对flag字段进行操作，置为add或者reduce
+                    })
+        return self.stepList
+
+    def save(self):
+        if(hasattr(self,'notExist') and getattr(self,'notExist') == True):
+            project = models.Project.objects.get(id=self.project)
+            try:
+                models.TestCase.objects.create(
+                    name=self.name,
+                    body=self.tests,
+                    project=project,
+                    relation=self.relation
+                )
+            except DataError:
+                return response.DATA_SAVE_FAILED
+        else:
+            try:
+                models.TestCase.objects.filter(Q(project=self.project, relation=self.relation)
+                                             | Q(id=self.id)).update(
+                    name=self.name,
+                    body=self.tests,
+                )
+            except DataError:
+                return response.DATA_SAVE_FAILED
+        return response.DATA_SAVE_SUCCESS
+
+    def updateTests(self,**kwargs):
+        self.setName(kwargs.get('name'))
+        tmpTests = []
+        for each_new in kwargs.get('tests'):
+            if(each_new.get('flag') == 'add'):
+                if('srcindex' in each_new.keys()):
+                    del each_new['srcindex']
+                if (each_new['method'].lower() == 'suite'):
+                    tmpTests.append({'id': each_new['id'],
+                                     'testcase': each_new['name']})
+                elif (each_new['method'].lower() in ('post', 'get', 'delete', 'patch', 'put', 'head', 'options')):
+                    tmpTests.append({'id': each_new['id'],
+                                     'api': each_new['name']})
+                continue
+            for each_src in self.tests:
+                if (each_src.get('srcindex', -1) == each_new.get('srcindex', -2)):
+                    if ('srcindex' in each_src.keys()):
+                        del each_src['srcindex']
+                    if ('index' in each_src.keys()):
+                        del each_src['index']
+                    if ('flag' in each_src.keys()):
+                        del each_src['flag']
+                        #TODO:上面三个if语句能不能简写
+                    tmpTests.append(each_src)
+                    break
+        self.tests = tmpTests
+
+    def getSpecStep(self,index):
+        specStep = self.tests[int(index)]
+        srcApi = models.API.objects.get(project=self.project, id=specStep['id'])
+        self.stepBody = self.tests[int(index)]  #这个是给run方法预留的
+        return self.parse_http(specStep['id'],eval(srcApi.body),specStep,index)
+
+    def parse_http(self,apiId,apiDefine,coveredApi,index):
+        suiteStep = {
+            'headers': [],
+            'request': {
+                'data': [],
+                'params': [],
+                'json_data': '',
+            },
+            'variables': [],
+            'hooks': [],
+            'validate': [],
+            'extract': [],
+        }
+        apiStep = {
+            'headers': [],
+            'request': {
+                'data': [],
+                'params': [],
+                'json_data': '',
+            },
+            'variables': [],
+            'hooks': [],
+            'validate': [],
+            'extract': [],
+        }
+        self.testcase = {
+            'suiteStep': suiteStep,
+            'apiStep': apiStep,
+            'apiId': apiId,
+        }
+        self.testcase['name'] = apiDefine['name']
+        self.testcase['method'] = apiDefine['request']['method']
+        self.testcase['url'] = apiDefine['request']['url']
+        self.testcase['srcName'] = apiDefine['name']
+        self.testcase['srcindex'] = index
+        if 'headers' in apiDefine['request'].keys():
+            for key, value in apiDefine['request'].pop('headers').items():
+                apiStep['headers'].append({
+                    "key": key,
+                    "value": value,
+                })
+        if coveredApi.get('headers'):
+            for key, value in coveredApi.pop('headers').items():
+                suiteStep['headers'].append({
+                    "key": key,
+                    "value": value,
+                })
+        if 'data' in apiDefine['request'].keys():
+            for key, value in apiDefine['request'].pop('data').items():
+                obj = get_type(value)
+                apiStep['request']['data'].append({
+                    "key": key,
+                    "value": obj[1],
+                    "type": obj[0],
+                })
+        if 'params' in apiDefine['request'].keys():
+            for key, value in apiDefine['request'].pop('params').items():
+                apiStep['request']['params'].append({
+                    "key": key,
+                    "value": value,
+                    "type": 1,
+                })
+        if 'json' in apiDefine['request'].keys():
+            apiStep['request']["json_data"] = \
+                json.dumps(apiDefine['request'].pop("json"), indent=4,
+                           separators=(',', ': '), ensure_ascii=False)
+        if apiDefine.get('variables'):
+            for content in apiDefine['variables']:
+                for key, value in content.items():
+                    obj = get_type(value)
+                    apiStep["variables"].append({
+                        "key": key,
+                        "value": obj[1],
+                        "type": obj[0]
+                    })
+        if coveredApi.get('variables'):
+            for content in coveredApi['variables']:
+                for key, value in content.items():
+                    obj = get_type(value)
+                    suiteStep["variables"].append({
+                        "key": key,
+                        "value": obj[1],
+                        "type": obj[0]
+                    })
+        if apiDefine.get('setup_hooks') or apiDefine.get('teardown_hooks'):
+            pass
+        if coveredApi.get('setup_hooks') or coveredApi.get('teardown_hooks'):
+            pass
+        if apiDefine.get('extract'):
+            for content in apiDefine['extract']:
+                for key, value in content.items():
+                    apiStep["extract"].append({
+                        "key": key,
+                        "value": value,
+                    })
+
+        if coveredApi.get('extract'):
+            for content in coveredApi['extract']:
+                for key, value in content.items():
+                    suiteStep["extract"].append({
+                        "key": key,
+                        "value": value,
+                    })
+
+        if apiDefine.get('validate'):
+            for content in apiDefine.get('validate'):
+                for key, value in content.items():
+                    obj = get_type(value[1])
+                    apiStep["validate"].append({
+                        "expect": obj[1],
+                        "actual": value[0],
+                        "comparator": key,
+                        "type": obj[0]
+                    })
+
+        if coveredApi.get('validate'):
+            for content in coveredApi.get('validate'):
+                for key, value in content.items():
+                    obj = get_type(value[1])
+                    suiteStep["validate"].append({
+                        "expect": obj[1],
+                        "actual": value[0],
+                        "comparator": key,
+                        "type": obj[0]
+                    })
+
+        return self.testcase
+
+    def updateTestStep(self,index,newteststep):
+        self.tests[index]['extract'] = newteststep['extract'].get('extract', {})
+        self.tests[index]['validate'] = newteststep['validate'].get('validate', {})
+        self.tests[index]['variables'] = newteststep['variables'].get('variables', {})
+        if ('srcindex' in self.tests[index].keys()):
+            del self.tests[index]['srcindex']
+        if ('index' in self.tests[index].keys()):
+            del self.tests[index]['index']
+        if ('flag' in self.tests[index].keys()):
+            del self.tests[index]['flag']
+            # TODO:上面三个if语句能不能简写

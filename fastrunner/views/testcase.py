@@ -3,7 +3,7 @@ from rest_framework.viewsets import GenericViewSet
 from fastrunner import models, serializers
 from rest_framework.response import Response
 from fastrunner.utils import response
-from fastrunner.utils.parser import Format, Parse,SuiteFormat,SuiteBodyFormat,TestSuiteFormat,testCaseFormat
+from fastrunner.utils.parser import Format, Parse,SuiteFormat,SuiteBodyFormat,TestSuiteFormat,testCaseFormat,caseFormat
 from django.db import DataError
 from django.http import HttpResponse
 from httprunner.api import HttpRunner
@@ -29,77 +29,44 @@ class TestCaseTemplateView(GenericViewSet):
             node: int  当前选中的步骤集节点
         }
         """
-        testCase = testCaseFormat(relation=request.query_params["node"],project=request.query_params["project"])
-        try:
-            queryset = self.get_queryset().get(project=request.query_params["project"], relation=request.query_params["node"])
-        except ObjectDoesNotExist:
-            return HttpResponse(json.dumps({
-            'id':'',
+
+        returnvalue = {
+            'id': '',
             'name': '',
             'maxindex': 0,
             'tests': [],
-            'empty':True,
-        }),content_type='application/json')
+            'empty': True,
+        }
+        case = caseFormat(project=request.query_params["project"], relation=request.query_params["node"])
+        if (hasattr(case, 'notExist') and case.getNotExist() == True):
+            return HttpResponse(json.dumps(returnvalue), content_type='application/json')
+        returnvalue['empty'] = False
+        returnvalue['id'] = case.getId()
+        returnvalue['name'] = case.getName()
+        returnvalue['tests'] = case.getAllStep()
 
-        testCase.getList(queryset)
-
-        return HttpResponse(json.dumps(testCase.allStep),content_type='application/json')
+        return HttpResponse(json.dumps(returnvalue), content_type='application/json')
 
     def add(self, request):
         """
         新增一个接口
         """
-        case = testCaseFormat(name=request.data['name'],project=request.data['project'],
-                              relation=request.data['relation'],optType="add")
 
-        case.addTestCase(request.data['tests'])
-        testBody = json.dumps({
-            'name': request.data['name'],
-            'def': request.data['name'],
-            'tests': case.tests
-        })
-        testCase = {
-            'name': request.data['name'],
-            'body': testBody,
-            'project': models.Project.objects.get(id=request.data['project']),
-            'relation': request.data['relation']
-        }
-
-        try:
-            models.TestCase.objects.create(**testCase)
-        except:
-            traceback.print_exc()
-            return Response(response.DATA_TO_LONG)
-
-        return HttpResponse("success")
+        case = caseFormat(project=request.data["project"], relation=request.data["relation"])
+        case.setName(request.data['name']);
+        case.setTests(request.data['tests'])
+        return HttpResponse(case.save())
 
     def update(self, request, **kwargs):
         """
         更新接口
         """
-
-        testCase = testCaseFormat(name = request.data['name'],optType="update")
-        pk = kwargs['pk']
-        try:
-            src_data = self.get_queryset().get(id=pk);
-        except ObjectDoesNotExist:
-            return HttpResponse('error')
-
-        testCase.updateList(src_data,request.data['tests'])
-
-        updateBody={
-            'name':request.data['name'],
-            'body':testCase.newbody
-        }
-
-        try:
-            models.TestCase.objects.filter(id=pk).update(**updateBody)
-        except ObjectDoesNotExist:
-            return Response(response.API_NOT_FOUND)
-
-        return Response(response.API_UPDATE_SUCCESS)
+        case = caseFormat(id=kwargs['pk'])
+        case.updateTests(name=request.data['name'], tests=request.data['tests'])
+        return Response(case.save())
 
     def delete(self, request, **kwargs):
+        #TODO:未实现的内容
         """
         删除一个接口 pk
         删除多个
@@ -124,50 +91,15 @@ class TestCaseTemplateView(GenericViewSet):
         """
         查询单个api，返回body信息
         """
-
-        relation = request.query_params["node"]
-        project = request.query_params["project"]
-        index = int(request.query_params['index'])
-        testCase = testCaseFormat(relation=relation,project=project)
-        try:
-            queryset = self.get_queryset().get(project=project, relation=relation)
-        except ObjectDoesNotExist:
-            return Response({'success':False})
-
-        testCase.getSingleStep(index,eval(queryset.body))
-        testCase.parse_http()
-
-        return Response(testCase.testcase)
+        case = caseFormat(project=request.query_params["project"], relation=request.query_params["node"])
+        case.getSpecStep(request.query_params["index"])
+        return Response(case.testcase)
 
     def updateSingleStep(self, request):
         """
         查询单个api，返回body信息
         """
-        relation = request.data["relation"]
-        project = request.data["project"]
-        try:
-            queryset = self.get_queryset().get(project=project, relation=relation)
-        except ObjectDoesNotExist:
-            return Response({'success':False})
+        case = caseFormat(project=request.data["project"], relation=request.data["relation"])
+        case.updateTestStep(int(request.data["srcindex"]), request.data)
+        return Response(case.save())
 
-        testCase = testCaseFormat(relation=relation,project=project)
-        testCase.srcbody = eval(queryset.body)
-        testCase.newbody={}
-        testCase.newbody['name'] = testCase.srcbody.get('name', '')
-        testCase.newbody['tests'] = copy.deepcopy(testCase.srcbody.get('tests', []))
-        srcindex = 0
-        for each in testCase.newbody['tests']:
-            srcindex += 1
-            each['srcindex'] = srcindex
-
-        testCase.updateStep(request.data)
-
-        new_body = json.dumps(testCase.newbody)
-        update_body = {'body': new_body}
-
-        try:
-            models.TestCase.objects.filter(project=project, relation=relation).update(**update_body)
-        except ObjectDoesNotExist:
-            return Response(response.API_NOT_FOUND)
-
-        return Response(response.API_UPDATE_SUCCESS)
