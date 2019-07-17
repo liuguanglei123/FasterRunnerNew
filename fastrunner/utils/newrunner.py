@@ -15,6 +15,8 @@ import traceback
 from fastrunner.utils.loader import save_summary
 from fastrunner.utils.tree import getNodeIdList
 from fastrunner.utils.parser import Format, Parse,SuiteFormat,SuiteBodyFormat,TestSuiteFormat,suiteFormat,caseFormat
+import collections
+
 
 
 
@@ -383,24 +385,42 @@ class RunTree(Run):
                     eachStep['api'] = 'api/'+eachStep['api']+'.yml'
         elif(self._type == 'caseTree'):
             SuiteIdList = []
-            for eachCase in self.CaseList.values():
-                for eachStep in eachCase:
+            for eachCaseName,eachCaseBody in self.CaseList.items():
+                for eachStep in eachCaseBody:
+                    if('api' in eachStep.keys()):
+                        if(eachCaseName in self.SuiteList.keys()):
+                            self.SuiteList[eachCaseName].append(eachStep)
+                        else:
+                            self.SuiteList[eachCaseName] = [eachStep,]
                     if('testcase' in eachStep.keys()):
-                        SuiteIdList.append(eachStep['id'])
-            try:
-                SuiteList = models.TestSuite.objects.filter(id__in=SuiteIdList, project=self._projectId, isdeleted=0)
-            except ObjectDoesNotExist:
-                self.errormsg = '没有找到对应节点的用例，请手动检查'
+                        # SuiteIdList.append(eachStep['id'])
+                        try:
+                            suite = models.TestSuite.objects.get(id=eachStep['id'], project=self._projectId,
+                                                                        isdeleted=0)
+                        except ObjectDoesNotExist:
+                            self.errormsg = '没有找到对应节点的用例，请手动检查'
 
-            for eachSuite in SuiteList:
-                self.SuiteList[eachSuite.name] = eval(eachSuite.body)
-                for eachStep in self.SuiteList[eachSuite.name]:
+                        for each in eval(suite.body):
+                            self.SuiteList[eachCaseName].append(each)
+                for eachStep in self.SuiteList[eachCaseName]:
                     eachStep['api'] = 'api/' + eachStep['api'] + '.yml'
 
-            for each in self.needTransApiToSuite:
-                tmpname = each['api']
-                each['api'] = 'api/' + each['api'] + '.yml'
-                self.SuiteList[tmpname] = [each,]
+
+
+            # try:
+            #     SuiteList = models.TestSuite.objects.filter(id__in=SuiteIdList, project=self._projectId, isdeleted=0)
+            # except ObjectDoesNotExist:
+            #     self.errormsg = '没有找到对应节点的用例，请手动检查'
+            #
+            # for eachSuite in SuiteList:
+            #     self.SuiteList[eachSuite.name] = eval(eachSuite.body)
+            #     for eachStep in self.SuiteList[eachSuite.name]:
+            #         eachStep['api'] = 'api/' + eachStep['api'] + '.yml'
+            #
+            # for each in self.needTransApiToSuite:
+            #     tmpname = each['api']
+            #     each['api'] = 'api/' + each['api'] + '.yml'
+            #     self.SuiteList[tmpname] = [each,]
 
 
 
@@ -509,30 +529,42 @@ class RunTree(Run):
                 self.TestSuiteList[caseName] =  copy.deepcopy(tmpTestSuiteList)
         elif(self._type == 'caseTree'):
             for caseName, caseBody in self.CaseList.items():
-                tmpTestSuiteList['testcases'] = {}
-                for eachStep in caseBody:
-                    if('api' in eachStep):
-                        tmpName = eachStep['api']
-                        tmpApiContent = {
-                                'testcase': 'testcases/' + eachStep['api'] + '.yml'
-                            }
-                        tmpApiContent.update(eachStep)
-                        del tmpApiContent['api']
-                        tmpTestSuiteList['testcases'].update({
-                            eachStep['api']: tmpApiContent})
-                    if ('testcase' in eachStep):
-                        tmpName = eachStep['testcase']
-                        tmpTestSuiteList['testcases'].update({
-                            eachStep['testcase']: {
-                                'testcase': 'testcases/' + eachStep['testcase'] + '.yml',
-                            }})
-                    if (hasattr(self, 'parameters') and getattr(self, 'parameters') != None):
-                        tmpTestSuiteList['testcases'][tmpName].update(
-                            {
-                                'parameters': self.parameters
-                            }
-                        )
-                self.TestSuiteList[caseName] =  copy.deepcopy(tmpTestSuiteList)
+                self.TestSuiteList[caseName] = {
+                    'testcases':{caseName:{
+                        'testcase': 'testcases/' + caseName + '.yml'
+                        }
+                    }
+                }
+
+                # tmpApiContent = {
+                #     'testcase': 'testcases/' + eachStep['api'] + '.yml'
+                # }
+                #
+                #
+                # tmpTestSuiteList['testcases'] = collections.OrderedDict()
+                # for eachStep in caseBody:
+                #     if('api' in eachStep):
+                #         tmpName = eachStep['api']
+                #         tmpApiContent = {
+                #                 'testcase': 'testcases/' + eachStep['api'] + '.yml'
+                #             }
+                #         tmpApiContent.update(eachStep)
+                #         del tmpApiContent['api']
+                #         tmpTestSuiteList['testcases'].update({
+                #             eachStep['api']: tmpApiContent})
+                #     if ('testcase' in eachStep):
+                #         tmpName = eachStep['testcase']
+                #         tmpTestSuiteList['testcases'].update({
+                #             eachStep['testcase']: {
+                #                 'testcase': 'testcases/' + eachStep['testcase'] + '.yml',
+                #             }})
+                #     if (hasattr(self, 'parameters') and getattr(self, 'parameters') != None):
+                #         tmpTestSuiteList['testcases'][tmpName].update(
+                #             {
+                #                 'parameters': self.parameters
+                #             }
+                #         )
+                # self.TestSuiteList[caseName] =  copy.deepcopy(tmpTestSuiteList)
         self.suitePath = os.path.join(self._projectPath, 'testsuites')
         for suiteName,suiteBody in self.TestSuiteList.items():
             if (os.path.exists(os.path.join(self.suitePath, suiteName + '.yml'))):
