@@ -82,8 +82,8 @@ if DEBUG:
         'default': {
             'ENGINE': 'django.db.backends.mysql',
             'NAME': 'FasterRunnerNew',  # 新建数据库名
-            'USER': 'root',  # 数据库登录名
-            'PASSWORD': 'Ngboss4,123',  # 数据库登录密码
+            'USER': 'liuguanglei',  # 数据库登录名
+            'PASSWORD': 'liuguanglei',  # 数据库登录密码
             'HOST': '111.231.235.87',  # 数据库所在服务器ip地址
             'PORT': '3306',  # 监听端口 默认3306即可
         }
@@ -93,8 +93,8 @@ else:
         'default': {
             'ENGINE': 'django.db.backends.mysql',
             'NAME': 'FasterRunnerNew',  # 新建数据库名
-            'USER': 'root',  # 数据库登录名
-            'PASSWORD': 'Ngboss4,123',  # 数据库登录密码
+            'USER': 'liuguanglei',  # 数据库登录名
+            'PASSWORD': 'liuguanglei',  # 数据库登录密码
             'HOST': '111.231.235.87',  # 数据库所在服务器ip地址
             'PORT': '3306',  # 监听端口 默认3306即可
         }
