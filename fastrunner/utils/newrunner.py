@@ -70,9 +70,9 @@ class RunMetaCls(type):
             return super_new(cls,name,bases,attrs)
 
         new_class = super_new(cls, name, bases, attrs, **kwargs)
-        attr_meta = attrs.pop('Meta',None)
-        if(attr_meta == None):
-            return new_class
+        # attr_meta = attrs.pop('Meta',None)
+        # if(attr_meta == None):
+        #     return new_class
         '''
         TODO:这里预留位置，用来加载：
             子类中MetaCls内部类定义的
@@ -249,7 +249,7 @@ class runTestCase(object):
         '''
 
 
-class RunSingleApi(Run):
+class RunSingleApi(Run, metaclass=RunMetaCls):
     #debugapi 在apiBody页面中请求 单个调试api
     #singleapi 在apiList页面中请求 单个执行api
     def __init__(self,**kwargs):
@@ -338,7 +338,7 @@ class RunSingleApi(Run):
         runner.run(self.suitePath, mapping=self._mapping)
         self.summary = parse_summary(runner.summary)
 
-class RunTree(Run):
+class RunTree(Run, metaclass=RunMetaCls):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         if(kwargs['type'] == 'apiTree'):
@@ -609,7 +609,7 @@ class RunTree(Run):
                     nodeList.extend(getNodeIdList(nodeId, each['children']))
         return nodeList
 
-class RunSingleApiInStep(Run):
+class RunSingleApiInStep(Run, metaclass=RunMetaCls):
     def __init__(self,**kwargs):
         #在stepbody或者casebody页面，调试api时，传入的内容是原api的id和修改后需要覆盖的casebody
         super().__init__(**kwargs)
@@ -708,7 +708,7 @@ class RunSingleApiInStep(Run):
         self.summary = parse_summary(runner.summary)
 
 
-class RunSingleApiInCase(Run):
+class RunSingleApiInCase(Run, metaclass=RunMetaCls):
     #TODO：要和上面的类合并一下，先这样吧
     def __init__(self,**kwargs):
         #在stepbody或者casebody页面，调试api时，传入的内容是原api的id和修改后需要覆盖的casebody

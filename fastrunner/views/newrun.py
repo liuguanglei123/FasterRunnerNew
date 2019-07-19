@@ -115,15 +115,7 @@ def run_testsuite_pk(request, **kwargs):
 
 @api_view(['POST'])
 def run_suite_tree(request):
-    """run suite by tree
-    {
-        project: int
-        relation: list
-        name: str
-        async: bool
-    }
-    """
-    # order by id default
+
     project = request.data['project']
     relation = request.data["relation"]
     back_async = request.data["async"]
